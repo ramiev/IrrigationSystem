@@ -7,7 +7,6 @@
 #include <TFT.h>  // Arduino LCD library
 #include <SD.h>
 
-
 // Irrigation system and climate for plants home use
 // by Rami Even-Tsur
 
@@ -63,11 +62,10 @@ BLEIntCharacteristic readMoistCharacteristic("19B10001-E8F2-537E-4F6C-D104768A12
 // pin definition for the SD card
 #define chipSelect 4
 
-
 // create an instance of the library
 TFT TFTscreen = TFT(cs, dc, rst);
 
-// Data wire is plugged into port 2 on the Arduino
+// Data wire is plugged into port (pin) 2 on the Arduino
 #define ONE_WIRE_BUS 2
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -90,11 +88,12 @@ boolean ValveOutput1Stat = false;
 void setup() {
   // initialize serial communication at 9600 bits per second:
   Serial.begin(9600);
-  /*
-    while (!Serial) {
-     // wait for serial port to connect. Needed for native USB port only
-    }
-  */
+  while (!Serial) {
+    // wait for serial port to connect. Needed for native USB port only
+    delay (5000);
+    break;
+  }
+
 
   setupSDcard();
   setupDisplay();
@@ -151,9 +150,12 @@ void setupSDcard() {
   if (!SD.begin(chipSelect)) {
     Serial.println("Card failed, or not present");
     // don't do anything more:
-    while (1);
+    // while (1);
+    delay (5000);
   }
-  Serial.println("card initialized.");
+  else  {
+    Serial.println("card initialized.");
+  }
 }
 
 void setupDisplay() {
