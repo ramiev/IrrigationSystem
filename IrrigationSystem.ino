@@ -7,7 +7,7 @@
 #include <SD.h>
 
 /*
-  Irrigation system and climate for plants home use
+  Irrigation system for plants home use
   by Rami Even-Tsur
   eventsur@gmail.com
 */
@@ -55,9 +55,9 @@
 #define SDchipSelect 4
 
 // pin definition for buttons control
-#define onOffButton 3
-#define setUpButton 5
-#define setDownButton 6
+#define sensorButton 3
+#define modeButton 5
+#define okButton 6
 
 // create an instance of the library
 TFT TFTscreen = TFT(cs, dc, rst);
@@ -84,15 +84,14 @@ int modeSelect = 0;
 int okSelect = 0;
 
 struct Config {
-  unsigned long lastWateringDate; // Sensor Mode
+  unsigned long lastWateringDate; // manual Mode
+  unsigned long sensorLastWateringDate; // Sensor Mode
   int moistureWateringThreshhold; // Sensor mode, moisture value threshhold
   int lightWateringThreshhold; // Sensor mode, light value threshhold
   unsigned long wateringTime; // Sensor mode, watering time and rest watering time in sec.
-
   unsigned long schWateringTime; // schedule mode, long watering time in sec.
   unsigned long schLastWateringDate; // schedule mode, Last Watering Date in sec.
   unsigned long schWateringFrequency; // schedule mode, time between Watering in sec.
-
 };
 
 const char *filename = "/config.txt";  // <- SD library uses 8.3 filenames
@@ -122,6 +121,7 @@ void setup() {
   sdConfig();
   buttonSetup();
   wateringOff();
+  printFile("datalog1.txt");
 }
 
 void loop() {
@@ -159,9 +159,9 @@ void clockDisplay(String PrintOut, int xPos, int yPos, int fontSize) {
 void buttonMenu() {
   bool cls = false;
   bool clsTxt = false;
-  int sensorButtonVal = digitalRead(onOffButton);
-  int modeButtonVal = digitalRead(setUpButton);
-  int okButtonVal = digitalRead(setDownButton);
+  int sensorButtonVal = digitalRead(sensorButton);
+  int modeButtonVal = digitalRead(modeButton);
+  int okButtonVal = digitalRead(okButton);
 
   int moistureSensorVal = getMoisture();
   int lightSensorVal = getLightValue();
@@ -232,12 +232,12 @@ void buttonMenu() {
       sensorMode();
       break;
     case 1:
-      sensorDisplay("schedule Mode", 0, 80, 2, 7, 0, cls, clsTxt);
+      sensorDisplay("Schedule Mode", 0, 80, 2, 7, 0, cls, clsTxt);
       cls = false;
       scheduleMode();
       break;
     case 2:
-      sensorDisplay("Manual Mode", 0, 80, 2, 7, 1000, cls, clsTxt);
+      sensorDisplay("Manual Mode", 0, 80, 2, 7, 0, cls, clsTxt);
       cls = false;
       manualMode();
       break;
@@ -270,7 +270,7 @@ void sensorMode() {
 
   if ((moistureSensorVal >= config.moistureWateringThreshhold) &&
       (lightSensorVal <= config.lightWateringThreshhold) && (ValveOutput1Stat == false) &&
-      ( (now() - config.lastWateringDate) >= config.wateringTime))
+      ( (now() - config.sensorLastWateringDate) >= config.wateringTime))
   {
     wateringOn();
 
@@ -281,14 +281,15 @@ void sensorMode() {
         config.wateringTime = elapseTime;
         break;
       }
-      sensorDisplay("Moisture Thld " + String(config.moistureWateringThreshhold), 0, 0, 1, 7, 0, false, false);
-      sensorDisplay("Light Thld " + String(config.lightWateringThreshhold), 0, 15, 1, 7, 0, false, false);
-      sensorDisplay("wateringTime " + String(config.wateringTime), 0, 30, 1, 7, 0, false, false);
-      sensorDisplay("ElapseTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
+      sensorDisplay("Sensor Mode", 0, 0, 1, 7, 0, false, false);
+      sensorDisplay("Moisture Thld " + String(config.moistureWateringThreshhold), 0, 15, 1, 7, 0, false, false);
+      sensorDisplay("Light Thld " + String(config.lightWateringThreshhold), 0, 30, 1, 7, 0, false, false);
+      sensorDisplay("wateringTime " + String(config.wateringTime), 0, 45, 1, 7, 0, false, false);
+      sensorDisplay("ElpsTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
 
     } while (elapseTime <= config.wateringTime);
     wateringOff();
-    config.lastWateringDate = now();
+    config.sensorLastWateringDate = now();
     saveConfiguration(filename, config);
   }
 }
@@ -306,14 +307,22 @@ void scheduleMode() {
     do {
       elapseTime = now() - startTime;
       moistureSensorVal = getMoisture();
-      if ((moistureSensorVal <= config.moistureWateringThreshhold)) {
+
+      int okButtonVal = digitalRead(okButton);
+      if ((okButtonVal == LOW) ) {
+        okSelect += 1;
+      }
+
+      if ((moistureSensorVal <= config.moistureWateringThreshhold) || (okSelect > 1)) {
         config.wateringTime = elapseTime;
+        okSelect = 0;
         break;
       }
-      sensorDisplay("LastWateringDate " + String(config.schLastWateringDate), 0, 0, 1, 7, 0, false, false);
-      sensorDisplay("WateringFrequency " + String(config.schWateringFrequency), 0, 15, 1, 7, 0, false, false);
-      sensorDisplay("wateringTime " + String(config.schWateringTime), 0, 30, 1, 7, 0, false, false);
-      sensorDisplay("ElapseTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
+      sensorDisplay("Schedule Mode", 0, 0, 1, 7, 0, false, false);
+      sensorDisplay("LastWateringDate " + String(config.schLastWateringDate), 0, 15, 1, 7, 0, false, false);
+      sensorDisplay("WateringFrequency " + String(config.schWateringFrequency), 0, 30, 1, 7, 0, false, false);
+      sensorDisplay("wateringTime " + String(config.schWateringTime), 0, 45, 1, 7, 0, false, false);
+      sensorDisplay("ElpsTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
     } while (elapseTime <= config.schWateringTime);
     wateringOff();
     config.schLastWateringDate = now();
@@ -337,9 +346,10 @@ void manualMode() {
         config.wateringTime = elapseTime;
         break;
       }
-      sensorDisplay("LastWateringDate " + String(config.lastWateringDate), 0, 0, 1, 7, 0, false, false);
-      sensorDisplay("wateringTime " + String(config.wateringTime), 0, 30, 1, 7, 0, false, false);
-      sensorDisplay("ElapseTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
+      sensorDisplay("Manual Mode", 0, 0, 1, 7, 0, false, false);
+      sensorDisplay("LastWateringDate " + String(config.lastWateringDate), 0, 30, 1, 7, 0, false, false);
+      sensorDisplay("wateringTime " + String(config.wateringTime), 0, 45, 1, 7, 0, false, false);
+      sensorDisplay("ElpsTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
     } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.lastWateringDate = now();
@@ -363,6 +373,7 @@ void serialSetTime() {
     incomingByte += c; //makes the string readString
     if (c == 10) {
       setTime(incomingByte.toInt() + timeZone);
+      sensorDisplay("Set time Mode", 0, 80, 2, 1, 500, true, true);
       break;
     } else {
       // Serial.println(c, DEC);
@@ -622,7 +633,7 @@ void loadConfiguration(const char *filename, Config &config) {
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
   // Use arduinojson.org/v6/assistant to compute the capacity.
-  StaticJsonDocument<512> doc;
+  StaticJsonDocument<256> doc;
 
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
@@ -630,10 +641,12 @@ void loadConfiguration(const char *filename, Config &config) {
     Serial.println(F("Failed to read file, using default configuration"));
 
   // Copy values from the JsonDocument to the Config
-  config.lastWateringDate = doc["lastWateringDate"] | 1595191438;
+  config.sensorLastWateringDate = doc["sensorLastWateringDate"] | 1595191438;
   config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 999;
   config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 500;
   config.wateringTime = doc["wateringTime"] | 600 ; //sec
+
+  config.lastWateringDate = doc["lastWateringDate"] | 1595191438;
 
   config.schWateringTime  = doc["schWateringTime"] | 600;
   config.schWateringFrequency = doc["schWateringFrequency"] | 600;
@@ -661,6 +674,7 @@ void saveConfiguration(const char *filename, const Config &config) {
 
   // Set the values in the document
   doc["lastWateringDate"] = config.lastWateringDate;
+  doc["sensorLastWateringDate"] = config.sensorLastWateringDate;
   doc["moistureWateringThreshhold"] = config.moistureWateringThreshhold;
   doc["lightWateringThreshhold"] = config.lightWateringThreshhold;
   doc["wateringTime"] = config.wateringTime;
@@ -698,12 +712,9 @@ void printFile(const char *filename) {
   file.close();
 }
 
-
-
-
 void buttonSetup() {
   //configure pin 3 5 6 as an input and enable the internal pull-up resistor
-  pinMode(onOffButton, INPUT_PULLUP);
-  pinMode(setUpButton, INPUT_PULLUP);
-  pinMode(setDownButton, INPUT_PULLUP);
+  pinMode(sensorButton, INPUT_PULLUP);
+  pinMode(modeButton, INPUT_PULLUP);
+  pinMode(okButton, INPUT_PULLUP);
 }
