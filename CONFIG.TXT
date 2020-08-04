@@ -1,1 +1,1 @@
-{"lastWateringDate":1596003131,"moistureWateringThreshhold":999,"lightWateringThreshhold":500,"wateringTime":29,"schWateringTime":600,"schWateringFrequency":600,"schLastWateringDate":1595982628}
+{"lastWateringDate":1596566392,"sensorLastWateringDate":1596574781,"moistureWateringThreshhold":999,"lightWateringThreshhold":500,"wateringTime":600,"schWateringTime":600,"schWateringFrequency":86400,"schLastWateringDate":1596566307}
