@@ -1,5 +1,6 @@
 #include <ArduinoJson.h>
 #include <CurieTime.h>
+#include <CurieBLE.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <SPI.h>
@@ -10,10 +11,9 @@
   Irrigation system for plants home use
   by Rami Even-Tsur
   eventsur@gmail.com
-*/
 
-/*
   components:
+    Arduino or Genuino 101
     Solenoid Valve ZE-4F180 NC DC 12V
     Soil Moisture Sensor YL-69
     Light Intensity Sensor Module 5528 Photo Resistor
@@ -97,6 +97,81 @@ struct Config {
 const char *filename = "/config.txt";  // <- SD library uses 8.3 filenames
 Config config;                         // <- global configuration object
 
+BLEService irrigationService("19B10000"); // BLE Irrigation Service
+
+// BLE Irrigation moisture light tempeture sensors level and ValveOutput1Stat Characteristic
+// custom 128-bit UUID,
+// remote clients will be able to get notifications if this characteristic changes
+BLEUnsignedCharCharacteristic moistureCharacteristic("19B10001", BLERead | BLENotify);
+BLEUnsignedCharCharacteristic lightCharacteristic("19B10002", BLERead | BLENotify);
+BLEFloatCharacteristic tempetureCharacteristic("19B10003", BLERead | BLENotify);
+BLECharCharacteristic ValveOutput1StatCharacteristic("19B10004", BLERead | BLENotify);
+
+void bleSetup() {
+
+  // begin initialization
+  BLE.begin();
+
+  /* Set a local name for the BLE device
+     This name will appear in advertising packets
+     and can be used by remote devices to identify this BLE device
+     The name can be changed but maybe be truncated based on space left in advertisement packet
+  */
+  BLE.setLocalName("Irrigation");
+  // BLE.setDeviceName("IrrigationSys"); // GENUINO 101-E860
+  // BLE.setAppearance(384);
+  BLE.setAdvertisedService(irrigationService);  // add the service UUID
+
+  // add the sensors level characteristic
+  irrigationService.addCharacteristic(moistureCharacteristic);
+  irrigationService.addCharacteristic(lightCharacteristic);
+  irrigationService.addCharacteristic(tempetureCharacteristic);
+  irrigationService.addCharacteristic(ValveOutput1StatCharacteristic);
+
+  BLE.addService(irrigationService);   // Add the BLE irrigation service
+  moistureCharacteristic.setValue(map(getMoisture(), 0, 1023, 0, 100)); // initial value for this characteristic
+  lightCharacteristic.setValue(map(getLightValue(), 0, 1023, 0, 100)); // initial value for this characteristic
+  tempetureCharacteristic.setValue(getTemperatures()); // initial value for this characteristic
+  ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat); // initial value for this characteristic
+
+  /* Start advertising BLE.  It will start continuously transmitting BLE
+     advertising packets and will be visible to remote BLE central devices
+     until it receives a new connection */
+
+  // start advertising
+  BLE.advertise();
+
+  Serial.println("Bluetooth device active, waiting for connections...");
+}
+
+void bleConnect() {
+  // listen for BLE peripherals to connect:
+  BLEDevice central = BLE.central();
+
+  // if a central is connected to peripheral:
+  if (central) {
+    Serial.print("Connected to central: ");
+    // print the central's MAC address:
+    Serial.println(central.address());
+
+    // while the central is still connected to peripheral:
+    if (central.connected()) {
+      // set the moisture value for the characeristic:
+      moistureCharacteristic.setValue(map(getMoisture(), 0, 1023, 0, 100));
+      lightCharacteristic.setValue(map(getLightValue(), 0, 1023, 0, 100));
+      tempetureCharacteristic.setValue(getTemperatures());
+      ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat);
+
+    } else  {
+      // when the central disconnects, print it out:
+      Serial.print(F("Disconnected from central: "));
+      Serial.println(central.address());
+    }
+
+  }
+}
+
+
 void setup() {
   // initialize serial communication at 9600 bits per second:
   Serial.begin(9600);
@@ -122,11 +197,13 @@ void setup() {
   buttonSetup();
   wateringOff();
   printFile("datalog1.txt");
+  bleSetup();
 }
 
 void loop() {
   clockDisplay(getStrTime(), 0, 110, 2);
   buttonMenu();
+  bleConnect();
 }
 
 
@@ -159,9 +236,11 @@ void clockDisplay(String PrintOut, int xPos, int yPos, int fontSize) {
 void buttonMenu() {
   bool cls = false;
   bool clsTxt = false;
-  int sensorButtonVal = digitalRead(sensorButton);
-  int modeButtonVal = digitalRead(modeButton);
-  int okButtonVal = digitalRead(okButton);
+
+  // get control button stat
+  bool sensorButtonVal = digitalRead(sensorButton);
+  bool modeButtonVal = digitalRead(modeButton);
+  bool okButtonVal = digitalRead(okButton);
 
   int moistureSensorVal = getMoisture();
   int lightSensorVal = getLightValue();
@@ -170,6 +249,7 @@ void buttonMenu() {
   if ((sensorButtonVal == LOW) ) {
     showSensorSelect += 1;
     cls = true;
+    clsTxt = true;
   }
 
   if ((modeButtonVal == LOW) ) {
@@ -190,38 +270,38 @@ void buttonMenu() {
 
   switch (showSensorSelect) {
     case 0:
-      if (cls) sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, true, true);
-      if (moistureSensorVal == getMoisture()) {
+      if (cls)  {
+        sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, cls, true);
+        cls = false;
+      } else if (moistureSensorVal == getMoisture()) {
         sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, false, false);
       } else if (moistureSensorVal != getMoisture()) {
         sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, true, false);
-      } else {
-        sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, true, true);
       }
       break;
     case 1:
-      if (cls)  sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, true, true);
-      if (lightSensorVal == getLightValue()) {
+      if (cls) {
+        sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, cls, true);
+        cls = false;
+      } else if (lightSensorVal == getLightValue()) {
         sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, false, false);
       } else if (lightSensorVal != getLightValue()) {
         sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, true, false);
-      } else {
-        sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, true, true);
       }
       break;
     case 2:
-      if (cls) sensorDisplay("temp\n" + String(tempC), 0, 0, 3, 3, 0, true, true);
-      if (tempC == getTemperatures()) {
+      if (cls) {
+        sensorDisplay("temp\n" + String(tempC), 0, 0, 3, 3, 0, cls, true);
+        cls = false;
+      } else if (tempC == getTemperatures()) {
         sensorDisplay("temp\n" + String(tempC), 0, 0, 3, 3, 0, false, false);
       } else if (tempC != getTemperatures()) {
         sensorDisplay("temp\n" + String(tempC), 0, 0, 3, 3, 0, true, false);
-      } else {
-        sensorDisplay("temp\n" + String(tempC), 0, 0, 3, 3, 0, true, true);
       }
       break;
     default:
       showSensorSelect = 0;
-      sensorDisplay("", 0, 0, 3, 5, 0, true, true);
+      //    sensorDisplay("", 0, 0, 3, 5, 0, true, true);
       break;
   }
 
@@ -230,6 +310,19 @@ void buttonMenu() {
       sensorDisplay("Sensor Mode", 0, 80, 2, 4, 0, cls, clsTxt);
       cls = false;
       sensorMode();
+      if (okSelect > 0 ) {
+        config.sensorLastWateringDate = now();
+        config.moistureWateringThreshhold = 999;
+        config.lightWateringThreshhold = 500;
+        config.wateringTime = 300 ; //sec
+        config.lastWateringDate = now();
+        config.schWateringTime = 300;
+        config.schWateringFrequency = 86400; // 1 day
+        config.schLastWateringDate = now();
+        saveConfiguration(filename, config);
+        sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
+        okSelect = 0;
+      }
       break;
     case 1:
       sensorDisplay("Schedule Mode", 0, 80, 2, 7, 0, cls, clsTxt);
@@ -285,8 +378,10 @@ void sensorMode() {
       sensorDisplay("Moisture Thld " + String(config.moistureWateringThreshhold), 0, 15, 1, 7, 0, false, false);
       sensorDisplay("Light Thld " + String(config.lightWateringThreshhold), 0, 30, 1, 7, 0, false, false);
       sensorDisplay("wateringTime " + String(config.wateringTime), 0, 45, 1, 7, 0, false, false);
-      sensorDisplay("ElpsTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
-
+      sensorDisplay("ElpsTime ", 0, 75, 2, 2, 0, false, false);
+      sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 500, false, true);
+      clockDisplay(getStrTime(), 0, 110, 2);
+      bleConnect();
     } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.sensorLastWateringDate = now();
@@ -322,7 +417,10 @@ void scheduleMode() {
       sensorDisplay("LastWateringDate " + String(config.schLastWateringDate), 0, 15, 1, 7, 0, false, false);
       sensorDisplay("WateringFrequency " + String(config.schWateringFrequency), 0, 30, 1, 7, 0, false, false);
       sensorDisplay("wateringTime " + String(config.schWateringTime), 0, 45, 1, 7, 0, false, false);
-      sensorDisplay("ElpsTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
+      sensorDisplay("ElpsTime ", 0, 75, 2, 2, 0, false, false);
+      sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 1000, false, true);
+      clockDisplay(getStrTime(), 0, 110, 2);
+      bleConnect();
     } while (elapseTime <= config.schWateringTime);
     wateringOff();
     config.schLastWateringDate = now();
@@ -349,7 +447,10 @@ void manualMode() {
       sensorDisplay("Manual Mode", 0, 0, 1, 7, 0, false, false);
       sensorDisplay("LastWateringDate " + String(config.lastWateringDate), 0, 30, 1, 7, 0, false, false);
       sensorDisplay("wateringTime " + String(config.wateringTime), 0, 45, 1, 7, 0, false, false);
-      sensorDisplay("ElpsTime " + String(elapseTime) + " sec", 0, 75, 2, 2, 1000, false, true);
+      sensorDisplay("ElpsTime ", 0, 75, 2, 2, 0, false, false);
+      sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 1000, false, true);
+      clockDisplay(getStrTime(), 0, 110, 2);
+      bleConnect();
     } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.lastWateringDate = now();
@@ -509,7 +610,6 @@ void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int font
     TFTscreen.stroke(0, 0, 0);
     TFTscreen.text(sensorPrintout, xPos, yPos);
   }
-
 }
 
 
@@ -641,16 +741,16 @@ void loadConfiguration(const char *filename, Config &config) {
     Serial.println(F("Failed to read file, using default configuration"));
 
   // Copy values from the JsonDocument to the Config
-  config.sensorLastWateringDate = doc["sensorLastWateringDate"] | 1595191438;
+  config.sensorLastWateringDate = doc["sensorLastWateringDate"] | now();
   config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 999;
   config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 500;
-  config.wateringTime = doc["wateringTime"] | 600 ; //sec
+  config.wateringTime = doc["wateringTime"] | 300 ; //sec
 
-  config.lastWateringDate = doc["lastWateringDate"] | 1595191438;
+  config.lastWateringDate = doc["lastWateringDate"] | now();
 
-  config.schWateringTime  = doc["schWateringTime"] | 600;
-  config.schWateringFrequency = doc["schWateringFrequency"] | 600;
-  config.schLastWateringDate = doc["schLastWateringDate"] | 1595191438;
+  config.schWateringTime  = doc["schWateringTime"] | 300;
+  config.schWateringFrequency = doc["schWateringFrequency"] | 86400; // 1 day
+  config.schLastWateringDate = doc["schLastWateringDate"] | now();
 
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
