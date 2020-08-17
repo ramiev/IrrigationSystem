@@ -1,11 +1,11 @@
 #include <ArduinoJson.h>
 #include <CurieTime.h>
-#include <CurieBLE.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <SPI.h>
 #include <TFT.h>  // Arduino LCD library
 #include <SD.h>
+#include <CurieBLE.h>
 
 /*
   Irrigation system for plants home use
@@ -83,6 +83,16 @@ int showSensorSelect = 0;
 int modeSelect = 0;
 int okSelect = 0;
 
+/*
+{"lastWateringDate":3154,
+"sensorLastWateringDate":5454,
+"moistureWateringThreshhold":999,
+"lightWateringThreshhold":500,
+"wateringTime":300,
+"schWateringTime":300,
+"schWateringFrequency":86400,
+"schLastWateringDate":3943}
+*/
 struct Config {
   unsigned long lastWateringDate; // manual Mode
   unsigned long sensorLastWateringDate; // Sensor Mode
@@ -107,16 +117,16 @@ BLEUnsignedCharCharacteristic lightCharacteristic("19B10002", BLERead | BLENotif
 BLEFloatCharacteristic tempetureCharacteristic("19B10003", BLERead | BLENotify);
 BLECharCharacteristic ValveOutput1StatCharacteristic("19B10004", BLERead | BLENotify);
 
+
 void bleSetup() {
 
   // begin initialization
   BLE.begin();
 
-  /* Set a local name for the BLE device
-     This name will appear in advertising packets
-     and can be used by remote devices to identify this BLE device
-     The name can be changed but maybe be truncated based on space left in advertisement packet
-  */
+  // Set a local name for the BLE device
+  // This name will appear in advertising packets
+  // and can be used by remote devices to identify this BLE device
+  // The name can be changed but maybe be truncated based on space left in advertisement packet
   BLE.setLocalName("Irrigation");
   // BLE.setDeviceName("IrrigationSys"); // GENUINO 101-E860
   // BLE.setAppearance(384);
@@ -134,15 +144,16 @@ void bleSetup() {
   tempetureCharacteristic.setValue(getTemperatures()); // initial value for this characteristic
   ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat); // initial value for this characteristic
 
-  /* Start advertising BLE.  It will start continuously transmitting BLE
-     advertising packets and will be visible to remote BLE central devices
-     until it receives a new connection */
+  // Start advertising BLE.  It will start continuously transmitting BLE
+  // advertising packets and will be visible to remote BLE central devices
+  // until it receives a new connection
 
   // start advertising
   BLE.advertise();
 
   Serial.println("Bluetooth device active, waiting for connections...");
 }
+
 
 void bleConnect() {
   // listen for BLE peripherals to connect:
@@ -600,7 +611,7 @@ void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int font
 
   // print the sensor value
   TFTscreen.text(sensorPrintout, xPos, yPos);
-  Serial.println(sensorPrintout);
+  //  Serial.println(sensorPrintout);
 
   // wait for a moment
   delay(delayVal);
@@ -740,13 +751,24 @@ void loadConfiguration(const char *filename, Config &config) {
   if (error)
     Serial.println(F("Failed to read file, using default configuration"));
 
+/*
+{"lastWateringDate":3154,
+"sensorLastWateringDate":5454,
+"moistureWateringThreshhold":999,
+"lightWateringThreshhold":500,
+"wateringTime":300,
+"schWateringTime":300,
+"schWateringFrequency":86400,
+"schLastWateringDate":3943}
+*/
   // Copy values from the JsonDocument to the Config
+  
+  config.lastWateringDate = doc["lastWateringDate"] | now();
+  
   config.sensorLastWateringDate = doc["sensorLastWateringDate"] | now();
   config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 999;
   config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 500;
   config.wateringTime = doc["wateringTime"] | 300 ; //sec
-
-  config.lastWateringDate = doc["lastWateringDate"] | now();
 
   config.schWateringTime  = doc["schWateringTime"] | 300;
   config.schWateringFrequency = doc["schWateringFrequency"] | 86400; // 1 day
