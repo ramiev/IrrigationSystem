@@ -7,11 +7,11 @@
     Arduino or Genuino 101
     Solenoid Valve ZE-4F180 NC DC 12V
     Soil Moisture Sensor YL-69
-    Light Intensity Sensor Module 5528 Photo Resistor
-    
+    Light Intensity Sensor Module 5528 Photo Resistor    
     sdcard
     lcd display
     power supply and backup battery
+    
     3 control buttons
     sensorButton (pin 3) - change sensore displying reading 
     modeButton (pin 5) - change opertion mode between Sensor Mode | Schedule Mode | Manual Mode | Set time Mode
