@@ -1,11 +1,11 @@
 #include <ArduinoJson.h>
-#include <CurieTime.h>
-#include <CurieBLE.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <SPI.h>
 #include <TFT.h>  // Arduino LCD library
 #include <SD.h>
+#include <CurieTime.h>
+#include <CurieBLE.h>
 
 /*
   Irrigation system for plants home use
@@ -59,6 +59,8 @@
 #define modeButton 5
 #define okButton 6
 
+#define serialOut false // use for debug
+
 // create an instance of the library
 TFT TFTscreen = TFT(cs, dc, rst);
 
@@ -83,6 +85,16 @@ int showSensorSelect = 0;
 int modeSelect = 0;
 int okSelect = 0;
 
+/*
+  {"lastWateringDate":3154,
+  "sensorLastWateringDate":5454,
+  "moistureWateringThreshhold":999,
+  "lightWateringThreshhold":500,
+  "wateringTime":300,
+  "schWateringTime":300,
+  "schWateringFrequency":86400,
+  "schLastWateringDate":3943}
+*/
 struct Config {
   unsigned long lastWateringDate; // manual Mode
   unsigned long sensorLastWateringDate; // Sensor Mode
@@ -107,16 +119,16 @@ BLEUnsignedCharCharacteristic lightCharacteristic("19B10002", BLERead | BLENotif
 BLEFloatCharacteristic tempetureCharacteristic("19B10003", BLERead | BLENotify);
 BLECharCharacteristic ValveOutput1StatCharacteristic("19B10004", BLERead | BLENotify);
 
+
 void bleSetup() {
 
   // begin initialization
   BLE.begin();
 
-  /* Set a local name for the BLE device
-     This name will appear in advertising packets
-     and can be used by remote devices to identify this BLE device
-     The name can be changed but maybe be truncated based on space left in advertisement packet
-  */
+  // Set a local name for the BLE device
+  // This name will appear in advertising packets
+  // and can be used by remote devices to identify this BLE device
+  // The name can be changed but maybe be truncated based on space left in advertisement packet
   BLE.setLocalName("Irrigation");
   // BLE.setDeviceName("IrrigationSys"); // GENUINO 101-E860
   // BLE.setAppearance(384);
@@ -134,15 +146,16 @@ void bleSetup() {
   tempetureCharacteristic.setValue(getTemperatures()); // initial value for this characteristic
   ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat); // initial value for this characteristic
 
-  /* Start advertising BLE.  It will start continuously transmitting BLE
-     advertising packets and will be visible to remote BLE central devices
-     until it receives a new connection */
+  // Start advertising BLE.  It will start continuously transmitting BLE
+  // advertising packets and will be visible to remote BLE central devices
+  // until it receives a new connection
 
   // start advertising
   BLE.advertise();
 
   Serial.println("Bluetooth device active, waiting for connections...");
 }
+
 
 void bleConnect() {
   // listen for BLE peripherals to connect:
@@ -196,7 +209,7 @@ void setup() {
   sdConfig();
   buttonSetup();
   wateringOff();
-  printFile("datalog1.txt");
+  printFile("datalog.csv");
   bleSetup();
 }
 
@@ -465,7 +478,8 @@ void manualMode() {
 void serialSetTime() {
   unsigned long timeZone = 10800; // utc +3 hours in israel
   String incomingByte = "" ; // for incoming serial data
-  // Serial.println("set time");
+  //  Serial.println("https://www.unixtimestamp.com/index.php");
+  //  Serial.println("Enter time in sec");
 
   // send data only when you receive data:
   while (Serial.available() > 0) {
@@ -550,7 +564,7 @@ void writeDataToSDcard() {
 
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
-  File dataFile = SD.open("datalog1.txt", FILE_WRITE);
+  File dataFile = SD.open("datalog.csv", FILE_WRITE);
 
   // if the file is available, write to it:
   if (dataFile) {
@@ -561,7 +575,7 @@ void writeDataToSDcard() {
   }
   // if the file isn't open, pop up an error:
   else {
-    Serial.println("error opening datalog.txt");
+    Serial.println("error opening datalog !");
   }
 }
 
@@ -600,7 +614,7 @@ void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int font
 
   // print the sensor value
   TFTscreen.text(sensorPrintout, xPos, yPos);
-  Serial.println(sensorPrintout);
+  if (serialOut) Serial.println(sensorPrintout);
 
   // wait for a moment
   delay(delayVal);
@@ -676,6 +690,7 @@ void setupSDcard() {
 }
 
 // tempeture setup
+// device 0 with address: 28FFAFD3741604CB
 void oneWireSetup(void) {
   // Start up the library
   sensors.begin();
@@ -727,31 +742,54 @@ void sdConfig() {
 
 // Loads the configuration from a file
 void loadConfiguration(const char *filename, Config &config) {
+
   // Open file for reading
   File file = SD.open(filename);
+  if (!file) {
+    Serial.println("open config file fail !");
+    config.sensorLastWateringDate = now();
+    config.moistureWateringThreshhold = 999;
+    config.lightWateringThreshhold = 500;
+    config.wateringTime = 300 ; //sec
+    config.lastWateringDate = now();
+    config.schWateringTime = 300;
+    config.schWateringFrequency = 86400; // 1 day
+    config.schLastWateringDate = now();
+    saveConfiguration(filename, config);
+    sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
+  }
 
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
   // Use arduinojson.org/v6/assistant to compute the capacity.
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<512> doc;
+
 
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
-  if (error)
+  if (error) {
     Serial.println(F("Failed to read file, using default configuration"));
-
-  // Copy values from the JsonDocument to the Config
-  config.sensorLastWateringDate = doc["sensorLastWateringDate"] | now();
-  config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 999;
-  config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 500;
-  config.wateringTime = doc["wateringTime"] | 300 ; //sec
-
-  config.lastWateringDate = doc["lastWateringDate"] | now();
-
-  config.schWateringTime  = doc["schWateringTime"] | 300;
-  config.schWateringFrequency = doc["schWateringFrequency"] | 86400; // 1 day
-  config.schLastWateringDate = doc["schLastWateringDate"] | now();
-
+    Serial.println(error.c_str());
+    // set values config
+    config.lastWateringDate = now();
+    config.sensorLastWateringDate = now();
+    config.moistureWateringThreshhold = 999;
+    config.lightWateringThreshhold = 500;
+    config.wateringTime = 300 ; //sec
+    config.schWateringTime = 300;
+    config.schWateringFrequency = 86400; // 1 day
+    config.schLastWateringDate = now();
+  } else {
+    // Copy values from the JsonDocument to the Config
+    config.lastWateringDate = doc["lastWateringDate"] | now();
+    config.sensorLastWateringDate = doc["sensorLastWateringDate"] | now();
+    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 999;
+    config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 500;
+    config.wateringTime = doc["wateringTime"] | 300 ; //sec
+    config.schWateringTime  = doc["schWateringTime"] | 300;
+    config.schWateringFrequency = doc["schWateringFrequency"] | 86400; // 1 day
+    config.schLastWateringDate = doc["schLastWateringDate"] | now();
+  }
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
 }
@@ -770,7 +808,7 @@ void saveConfiguration(const char *filename, const Config &config) {
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
   // Use arduinojson.org/assistant to compute the capacity.
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<512> doc;
 
   // Set the values in the document
   doc["lastWateringDate"] = config.lastWateringDate;
@@ -801,13 +839,11 @@ void printFile(const char *filename) {
     Serial.println(F("Failed to read file"));
     return;
   }
-
   // Extract each characters by one by one
   while (file.available()) {
     Serial.print((char)file.read());
   }
   Serial.println();
-
   // Close the file
   file.close();
 }
