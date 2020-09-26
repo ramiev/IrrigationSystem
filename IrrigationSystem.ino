@@ -85,16 +85,7 @@ int showSensorSelect = 0;
 int modeSelect = 0;
 int okSelect = 0;
 
-/*
-  {"lastWateringDate":3154,
-  "sensorLastWateringDate":5454,
-  "moistureWateringThreshhold":999,
-  "lightWateringThreshhold":500,
-  "wateringTime":300,
-  "schWateringTime":300,
-  "schWateringFrequency":86400,
-  "schLastWateringDate":3943}
-*/
+
 struct Config {
   unsigned long lastWateringDate; // manual Mode
   unsigned long sensorLastWateringDate; // Sensor Mode
@@ -141,8 +132,8 @@ void bleSetup() {
   irrigationService.addCharacteristic(ValveOutput1StatCharacteristic);
 
   BLE.addService(irrigationService);   // Add the BLE irrigation service
-  moistureCharacteristic.setValue(map(getMoisture(), 0, 1023, 0, 100)); // initial value for this characteristic
-  lightCharacteristic.setValue(map(getLightValue(), 0, 1023, 0, 100)); // initial value for this characteristic
+  moistureCharacteristic.setValue(getMoisture()); // initial value for this characteristic
+  lightCharacteristic.setValue(getLightValue()); // initial value for this characteristic
   tempetureCharacteristic.setValue(getTemperatures()); // initial value for this characteristic
   ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat); // initial value for this characteristic
 
@@ -170,8 +161,8 @@ void bleConnect() {
     // while the central is still connected to peripheral:
     if (central.connected()) {
       // set the moisture value for the characeristic:
-      moistureCharacteristic.setValue(map(getMoisture(), 0, 1023, 0, 100));
-      lightCharacteristic.setValue(map(getLightValue(), 0, 1023, 0, 100));
+      moistureCharacteristic.setValue(getMoisture());
+      lightCharacteristic.setValue(getLightValue());
       tempetureCharacteristic.setValue(getTemperatures());
       ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat);
 
@@ -209,6 +200,7 @@ void setup() {
   sdConfig();
   buttonSetup();
   wateringOff();
+  Serial.println("Print Irrigation activity file...");
   printFile("datalog.csv");
   bleSetup();
 }
@@ -284,22 +276,22 @@ void buttonMenu() {
   switch (showSensorSelect) {
     case 0:
       if (cls)  {
-        sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, cls, true);
+        sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, cls, true);
         cls = false;
       } else if (moistureSensorVal == getMoisture()) {
-        sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, false, false);
+        sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, false, false);
       } else if (moistureSensorVal != getMoisture()) {
-        sensorDisplay("humidity\n" + String(moistureSensorVal), 0, 0, 3, 4, 0, true, false);
+        sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, true, false);
       }
       break;
     case 1:
       if (cls) {
-        sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, cls, true);
+        sensorDisplay("light\n" + String(lightSensorVal) + " %", 0, 0, 3, 5, 0, cls, true);
         cls = false;
       } else if (lightSensorVal == getLightValue()) {
-        sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, false, false);
+        sensorDisplay("light\n" + String(lightSensorVal) + " %", 0, 0, 3, 5, 0, false, false);
       } else if (lightSensorVal != getLightValue()) {
-        sensorDisplay("light\n" + String(lightSensorVal), 0, 0, 3, 5, 0, true, false);
+        sensorDisplay("light\n" + String(lightSensorVal) + " %", 0, 0, 3, 5, 0, true, false);
       }
       break;
     case 2:
@@ -324,16 +316,12 @@ void buttonMenu() {
       cls = false;
       sensorMode();
       if (okSelect > 0 ) {
-        config.sensorLastWateringDate = now();
-        config.moistureWateringThreshhold = 999;
-        config.lightWateringThreshhold = 500;
-        config.wateringTime = 300 ; //sec
-        config.lastWateringDate = now();
-        config.schWateringTime = 300;
-        config.schWateringFrequency = 86400; // 1 day
-        config.schLastWateringDate = now();
+        setConfigValues();
         saveConfiguration(filename, config);
         sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
+        // Dump config file
+        Serial.println(F("Print config file..."));
+        printFile(filename);
         okSelect = 0;
       }
       break;
@@ -499,12 +487,12 @@ void serialSetTime() {
 
 int getMoisture() {
   int moistureSensorVal = analogRead(moistureSensorPin);
-  return moistureSensorVal;
+  return map(moistureSensorVal, 0, 1023, 0, 100);
 }
 
 int  getLightValue()  {
   int lightSensorVal = analogRead(lightSensorPin);
-  return lightSensorVal;
+  return map(lightSensorVal, 0, 1023, 0, 100);
 }
 
 float getTemperatures(void) {
@@ -556,8 +544,8 @@ void writeDataToSDcard() {
   // read three sensors and append to the string:
   dataString = getStrTime()
                + "," + String(getTemperatures()) + "℃"
-               + "," + String(getMoisture()) + " moisture"
-               + "," + String(getLightValue()) + " light"
+               + "," + String(getMoisture()) + "% moisture"
+               + "," + String(getLightValue()) + "% light"
                + "," + String(ValveOutput1Stat) + " Irrigation"
                + "," + String(startTime)
                + "," + String(stopTime);
@@ -726,6 +714,8 @@ void printAddress(DeviceAddress deviceAddress) {
   }
 }
 
+// json file config.txt format
+// {"lastWateringDate":2273,"sensorLastWateringDate":2273,"moistureWateringThreshhold":999,"lightWateringThreshhold":500,"wateringTime":300,"schWateringTime":300,"schWateringFrequency":86400,"schLastWateringDate":2273}
 void sdConfig() {
   // Should load default config if run for the first time
   Serial.println(F("Loading configuration..."));
@@ -746,15 +736,8 @@ void loadConfiguration(const char *filename, Config &config) {
   // Open file for reading
   File file = SD.open(filename);
   if (!file) {
-    Serial.println("open config file fail !");
-    config.sensorLastWateringDate = now();
-    config.moistureWateringThreshhold = 999;
-    config.lightWateringThreshhold = 500;
-    config.wateringTime = 300 ; //sec
-    config.lastWateringDate = now();
-    config.schWateringTime = 300;
-    config.schWateringFrequency = 86400; // 1 day
-    config.schLastWateringDate = now();
+    Serial.println("open config file fail !, create new config file ");
+    setConfigValues();
     saveConfiguration(filename, config);
     sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
   }
@@ -770,21 +753,14 @@ void loadConfiguration(const char *filename, Config &config) {
   if (error) {
     Serial.println(F("Failed to read file, using default configuration"));
     Serial.println(error.c_str());
-    // set values config
-    config.lastWateringDate = now();
-    config.sensorLastWateringDate = now();
-    config.moistureWateringThreshhold = 999;
-    config.lightWateringThreshhold = 500;
-    config.wateringTime = 300 ; //sec
-    config.schWateringTime = 300;
-    config.schWateringFrequency = 86400; // 1 day
-    config.schLastWateringDate = now();
+    // set default values config
+    setConfigValues();
   } else {
     // Copy values from the JsonDocument to the Config
     config.lastWateringDate = doc["lastWateringDate"] | now();
     config.sensorLastWateringDate = doc["sensorLastWateringDate"] | now();
-    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 999;
-    config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 500;
+    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 10;
+    config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 100;
     config.wateringTime = doc["wateringTime"] | 300 ; //sec
     config.schWateringTime  = doc["schWateringTime"] | 300;
     config.schWateringFrequency = doc["schWateringFrequency"] | 86400; // 1 day
@@ -853,4 +829,20 @@ void buttonSetup() {
   pinMode(sensorButton, INPUT_PULLUP);
   pinMode(modeButton, INPUT_PULLUP);
   pinMode(okButton, INPUT_PULLUP);
+}
+
+void setConfigValues() {
+  // set default values config
+
+  config.moistureWateringThreshhold = 20; //  % dry
+  config.lightWateringThreshhold = 100; // % light
+  config.wateringTime = 300 ; //sec
+  // manual mode
+  config.lastWateringDate = now();
+  // sensor mode
+  config.sensorLastWateringDate = now();
+  // sch. mode
+  config.schLastWateringDate = now();
+  config.schWateringTime = 300;
+  config.schWateringFrequency = 86400; // 1 day
 }
