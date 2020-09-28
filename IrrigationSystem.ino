@@ -200,8 +200,7 @@ void setup() {
   sdConfig();
   buttonSetup();
   wateringOff();
-  Serial.println("Print Irrigation activity file...");
-  printFile("datalog.csv");
+
   bleSetup();
 }
 
@@ -315,7 +314,11 @@ void buttonMenu() {
       sensorDisplay("Sensor Mode", 0, 80, 2, 4, 0, cls, clsTxt);
       cls = false;
       sensorMode();
-      if (okSelect > 0 ) {
+      if (okSelect) {
+        // Dump Irrigation activity file
+        Serial.println("Print Irrigation activity file...");
+        printFile("datalog.csv");
+        // inint config file to defaults
         setConfigValues();
         saveConfiguration(filename, config);
         sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
