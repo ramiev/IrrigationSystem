@@ -39,6 +39,7 @@
 #define moistureSensorPin A0 // input from moisture sensor
 #define lightSensorPin A1    // input from Light sensor
 #define Valve_Output1_PIN 7 // select the pin for the solenoid valve control
+
 // pin definition for the tft display
 #define cs   10
 #define dc   9
@@ -59,7 +60,7 @@
 #define modeButton 5
 #define okButton 6
 
-boolean serialOut = false; // use for debug
+boolean serialOut = false; // use for printing lcd display output message to terminal for debug
 
 // create an instance of the library
 TFT TFTscreen = TFT(cs, dc, rst);
@@ -73,7 +74,7 @@ DallasTemperature sensors(&oneWire);
 int numberOfDevices; // Number of temperature devices found
 DeviceAddress tempDeviceAddress; // We'll use this variable to store a found device address
 
-// irrigation timeing 
+// irrigation timeing
 unsigned long startTime = 0, stopTime = 0, elapseTime = 0;
 
 // watering Solenoid Valve stat
@@ -82,9 +83,9 @@ boolean ValveOutput1Stat = false;
 // use for display clear old clock value
 char clockPrintout[20] = "";
 
-int showSensorSelect = 0;
-int modeSelect = 0;
-int okSelect = 0;
+byte showSensorSelect = 0;
+byte modeSelect = 0;
+byte okSelect = 0;
 
 struct Config {
   unsigned long lastWateringDate; // manual Mode
@@ -465,7 +466,6 @@ void manualMode() {
     } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.lastWateringDate = now();
-    getWaterReservoirState();
     saveConfiguration(filename, config);
     okSelect = 0 ;
     modeSelect = 0; // return to sensor mode
@@ -493,7 +493,7 @@ void serialSetTime() {
       serialOut = false;
       break;
     } else {
-      Serial.println(c,DEC);
+      Serial.println(c, DEC);
     }
   }
 }
@@ -653,7 +653,7 @@ void wateringOff() {
     sensorDisplay("Watering OFF", 0, 55, 2, 4, 0, true, false);
   }
   writeDataToSDcard();
-
+  getWaterReservoirState();
 }
 
 
@@ -665,11 +665,13 @@ void wateringOff() {
 */
 // logic of water flow and Water Tank empty check
 float getWaterReservoirState() {
-  config.waterReservoirState = config.waterReservoirState - elapseTime * config.flowRate;
-  Serial.println(String(elapseTime));
-  Serial.println(String(config.waterReservoirState));
-  Serial.println(String(config.flowRate));
 
+  config.waterReservoirState = config.waterReservoirState - elapseTime * config.flowRate;
+  serialOut = true;
+  sensorDisplay("elapseTime " + String(elapseTime), 0, 0, 3, 6, 0, true, true);
+  sensorDisplay("waterReservoirState " + String(config.waterReservoirState), 0, 20, 3, 6, 0, false, true);
+  sensorDisplay("flowRate " + String(config.flowRate), 0, 40, 3, 6, 0, false, true);
+  serialOut = false;
   return config.waterReservoirState;
 }
 
