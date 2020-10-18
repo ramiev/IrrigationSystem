@@ -35,19 +35,5 @@
   Measures and records irrigation time and moisture and lighting values
   
   The irrigation activity is documented and writing to file datalog.csv
-  
-  Configuration file is config.txt json file format :
-  {"lastWateringDate":2273, // manualMode
-  "sensorLastWateringDate":2273,
-  "moistureWateringThreshhold":999,
-  "lightWateringThreshhold":500,
-  "wateringTime":300, // manualMode
-  "schWateringTime":300,
-  "schWateringFrequency":86400,
-  "schLastWateringDate":2273}
-  
-  bluetooth LE support
-  
 
-  
-  
+  bluetooth LE support
