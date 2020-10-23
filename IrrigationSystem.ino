@@ -56,9 +56,11 @@
 #define SDchipSelect 4
 
 // pin definition for buttons control
-#define sensorButton 3
+#define sensorButton 0
 #define modeButton 5
 #define okButton 6
+
+#define pumpPwmPin 3  // controls the pump motor speed 
 
 boolean serialOut = false; // use for printing lcd display output message to terminal for debug
 
@@ -199,6 +201,7 @@ void setup() {
   pinMode(moistureSensorPin, INPUT);
   pinMode(lightSensorPin, INPUT);
   pinMode(Valve_Output1_PIN, OUTPUT);
+  pinMode(pumpPwmPin, OUTPUT);
 
   sdConfig();
   buttonSetup();
@@ -633,6 +636,9 @@ void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int font
 
 void wateringOn() {
   digitalWrite(Valve_Output1_PIN, HIGH);
+
+  analogWrite(pumpPwmPin, 165); // run the pump
+
   ValveOutput1Stat = true;
   startTime = now();
   if (ValveOutput1Stat) {
@@ -645,6 +651,7 @@ void wateringOn() {
 
 void wateringOff() {
   digitalWrite(Valve_Output1_PIN, LOW);
+  analogWrite(pumpPwmPin, 0); // stop the pump
   ValveOutput1Stat = false;
   stopTime = now();
   if (ValveOutput1Stat) {
