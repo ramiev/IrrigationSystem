@@ -13,7 +13,7 @@
     power supply and backup battery
     
     3 control buttons
-    sensorButton (pin 3) - change sensore displying reading 
+    sensorButton (pin 3) see note pin changed to 0 - change sensore displying reading 
     modeButton (pin 5) - change opertion mode between Sensor Mode | Schedule Mode | Manual Mode | Set time Mode
     okButton (pin 6) - multi purpose button, create config.txt file | break irrigation opertion
     
