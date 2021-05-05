@@ -60,7 +60,12 @@
 #define modeButton 5
 #define okButton 6
 
-#define pumpPwmPin 3  // controls the pump motor speed 
+// controls the pump motor speed using Pulse Width Modulation
+// duty cycle: between 0 (always off) and 255 (always on).
+// due to power supply limitation DutyCycleOn set to 160
+#define pumpPwmPin 3
+#define pumpPwmDutyCycleOn 255
+#define pumpPwmDutyCycleOff 0
 
 boolean serialOut = false; // use for printing lcd display output message to terminal for debug
 
@@ -98,7 +103,7 @@ struct Config {
   unsigned long schWateringTime; // schedule mode, long watering time in sec.
   unsigned long schLastWateringDate; // schedule mode, Last Watering Date in sec.
   unsigned long schWateringFrequency; // schedule mode, time between Watering in sec.
-  float flowRate; // L/s
+  float flowRate; // L/s 
   float waterReservoirState; // waterReservoirSize -  elapseTime * flowRate
 };
 
@@ -283,7 +288,7 @@ void buttonMenu() {
       } else if (moistureSensorVal == getMoisture()) {
         sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, false, false);
       } else if (moistureSensorVal != getMoisture()) {
-        sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, true, false);
+        sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, true, true);
       }
       break;
     case 1:
@@ -385,11 +390,11 @@ void sensorMode() {
         okSelect += 1;
       }
 
-      if ( (moistureSensorVal <= config.moistureWateringThreshhold) || (okSelect > 1) ) {
-        // config.wateringTime = elapseTime;
+      if ( ((moistureSensorVal <= config.moistureWateringThreshhold) && (config.wateringTime <= elapseTime)) || (okSelect > 1) ) {
         okSelect = 0;
         break;
       }
+
       sensorDisplay("Sensor Mode", 0, 0, 1, 7, 0, false, false);
       sensorDisplay("Moisture Thld " + String(config.moistureWateringThreshhold), 0, 15, 1, 7, 0, false, false);
       sensorDisplay("Light Thld " + String(config.lightWateringThreshhold), 0, 30, 1, 7, 0, false, false);
@@ -479,7 +484,7 @@ void manualMode() {
 // set system time by sending utc unix time number through serial
 // unix time url https://www.unixtimestamp.com/index.php
 void serialSetTime() {
-  unsigned long timeZone = 10800; // utc +3 hours in israel
+  unsigned long timeZone = 10800 ; // 10800 utc +3 hours in israel +2 7200
   String incomingByte = "" ; // for incoming serial data
   //  Serial.println("https://www.unixtimestamp.com/index.php");
   //  Serial.println("Enter unix time in sec");
@@ -496,7 +501,7 @@ void serialSetTime() {
       serialOut = false;
       break;
     } else {
-      Serial.println(c, DEC);
+      Serial.println(c);
     }
   }
 }
@@ -637,7 +642,7 @@ void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int font
 void wateringOn() {
   digitalWrite(Valve_Output1_PIN, HIGH);
 
-  analogWrite(pumpPwmPin, 165); // run the pump
+  analogWrite(pumpPwmPin, pumpPwmDutyCycleOn); // run the pump
 
   ValveOutput1Stat = true;
   startTime = now();
@@ -651,7 +656,7 @@ void wateringOn() {
 
 void wateringOff() {
   digitalWrite(Valve_Output1_PIN, LOW);
-  analogWrite(pumpPwmPin, 0); // stop the pump
+  analogWrite(pumpPwmPin, pumpPwmDutyCycleOff); // stop the pump
   ValveOutput1Stat = false;
   stopTime = now();
   if (ValveOutput1Stat) {
@@ -812,7 +817,7 @@ void loadConfiguration(const char *filename, Config &config) {
     config.schLastWateringDate = doc["schLastWateringDate"] | now();
 
     config.waterReservoirState = doc["waterReservoirState"] | 4 ; //liters
-    config.flowRate = doc["flowRate"] | 0.06 ; // liters/sec 1/3600 240 L/H
+    config.flowRate = doc["flowRate"] | 0.01 ; // liters/sec 1/3600 240 L/H 1/120
 
   }
   // Close the file (Curiously, File's destructor doesn't close the file)
@@ -828,7 +833,7 @@ void saveConfiguration(const char *filename, const Config &config) {
   // Open file for writing
   File file = SD.open(filename, FILE_WRITE);
   if (!file) {
-    Serial.println(F("Failed to create file"));
+    Serial.println(F("Failed to create file "));
     return;
   }
   // Allocate a temporary JsonDocument
@@ -902,5 +907,5 @@ void setConfigValues() {
   config.schWateringFrequency = 86400; // 1 day
 
   config.waterReservoirState = 4; //liters
-  config.flowRate = 0.06; // liters/sec 1/3600
+  config.flowRate = 0.01; // liters/sec 1/3600
 }
