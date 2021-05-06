@@ -264,6 +264,13 @@ void buttonMenu() {
     clsTxt = true;
   }
 
+  // show water state for filling indicator 
+  if (config.waterReservoirState <= 0) {
+    showSensorSelect = 3;
+    cls = true;
+    clsTxt = true;
+  }
+
   if ((modeButtonVal == LOW) ) {
     modeSelect += 1;
     cls = true;
