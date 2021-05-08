@@ -67,7 +67,7 @@
 #define pumpPwmDutyCycleOn 255
 #define pumpPwmDutyCycleOff 0
 
-boolean serialOut = false; // use for printing lcd display output message to terminal for debug
+boolean serialOut = true; // use for printing lcd display output message to terminal for debug
 
 // create an instance of the library
 TFT TFTscreen = TFT(cs, dc, rst);
@@ -332,7 +332,7 @@ void buttonMenu() {
       sensorDisplay("Sensor Mode", 0, 80, 2, 4, 0, cls, clsTxt);
       cls = false;
       sensorMode();
-      if (okSelect) {
+      if (okSelect) {  // logic in case of init config file needed and irrigation log print to console 
         // Dump Irrigation activity file
         Serial.println("Print Irrigation activity file...");
         printFile("datalog.csv");
@@ -814,18 +814,16 @@ void loadConfiguration(const char *filename, Config &config) {
     setConfigValues();
   } else {
     // Copy values from the JsonDocument to the Config
-    config.lastWateringDate = doc["lastWateringDate"] | now();
-    config.sensorLastWateringDate = doc["sensorLastWateringDate"] | now();
-    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"] | 15;
-    config.lightWateringThreshhold = doc["lightWateringThreshhold"]  | 100;
-    config.wateringTime = doc["wateringTime"] | 300 ; //sec
-    config.schWateringTime  = doc["schWateringTime"] | 300;
-    config.schWateringFrequency = doc["schWateringFrequency"] | 86400; // 1 day
-    config.schLastWateringDate = doc["schLastWateringDate"] | now();
-
-    config.waterReservoirState = doc["waterReservoirState"] | 4 ; //liters
-    config.flowRate = doc["flowRate"] | 0.01 ; // liters/sec 1/3600 240 L/H 1/120
-
+    config.lastWateringDate = doc["lastWateringDate"];
+    config.sensorLastWateringDate = doc["sensorLastWateringDate"]; 
+    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"]; 
+    config.lightWateringThreshhold = doc["lightWateringThreshhold"];
+    config.wateringTime = doc["wateringTime"]; //sec
+    config.schWateringTime  = doc["schWateringTime"];
+    config.schWateringFrequency = doc["schWateringFrequency"]; // 1 day
+    config.schLastWateringDate = doc["schLastWateringDate"];
+    config.waterReservoirState = doc["waterReservoirState"]; //liters
+    config.flowRate = doc["flowRate"]; // liters/sec 1/3600 240 L/H 1/120 0.01
   }
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
