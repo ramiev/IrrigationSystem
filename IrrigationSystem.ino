@@ -103,7 +103,7 @@ struct Config {
   unsigned long schWateringTime; // schedule mode, long watering time in sec.
   unsigned long schLastWateringDate; // schedule mode, Last Watering Date in sec.
   unsigned long schWateringFrequency; // schedule mode, time between Watering in sec.
-  float flowRate; // L/s 
+  float flowRate; // L/s
   float waterReservoirState; // waterReservoirSize -  elapseTime * flowRate
 };
 
@@ -264,7 +264,7 @@ void buttonMenu() {
     clsTxt = true;
   }
 
-  // show water state for filling indicator 
+  // show water state for filling indicator
   if (config.waterReservoirState <= 0) {
     showSensorSelect = 3;
     cls = true;
@@ -328,21 +328,14 @@ void buttonMenu() {
   }
 
   switch (modeSelect) {
-    case 0:
+    case 0: // sensor mode and reservoir refilled init
       sensorDisplay("Sensor Mode", 0, 80, 2, 4, 0, cls, clsTxt);
       cls = false;
       sensorMode();
-      if (okSelect) {  // logic in case of init config file needed and irrigation log print to console 
-        // Dump Irrigation activity file
-        Serial.println("Print Irrigation activity file...");
-        printFile("datalog.csv");
-        // inint config file to defaults
-        setConfigValues();
+      if (okSelect && showSensorSelect == 3) {  // logic in case of water reservoir refilled to the full
+        config.waterReservoirState = 4;
         saveConfiguration(filename, config);
-        sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
-        // Dump config file
-        Serial.println(F("Print config file..."));
-        printFile(filename);
+        sensorDisplay("Reservoir refilled", 0, 80, 2, 4, 1000, true, true);
         okSelect = 0;
       }
       break;
@@ -356,10 +349,25 @@ void buttonMenu() {
       cls = false;
       manualMode();
       break;
-    case 3:
+    case 3:  // set time mode and init config
       serialSetTime();
       sensorDisplay("Set time Mode", 0, 80, 2, 7, 0, cls, clsTxt);
       cls = false;
+
+      if (okSelect) {  // logic in case of init config file needed and irrigation log print to console
+        // Dump Irrigation activity file
+        Serial.println("Print Irrigation activity file...");
+        printFile("datalog.csv");
+        // inint config file to defaults
+        setConfigValues();
+        saveConfiguration(filename, config);
+        sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true);
+        // Dump config file
+        Serial.println(F("Print config file..."));
+        printFile(filename);
+        okSelect = 0;
+      }
+
       break;
     default:
       modeSelect = 0;
@@ -815,8 +823,8 @@ void loadConfiguration(const char *filename, Config &config) {
   } else {
     // Copy values from the JsonDocument to the Config
     config.lastWateringDate = doc["lastWateringDate"];
-    config.sensorLastWateringDate = doc["sensorLastWateringDate"]; 
-    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"]; 
+    config.sensorLastWateringDate = doc["sensorLastWateringDate"];
+    config.moistureWateringThreshhold = doc["moistureWateringThreshhold"];
     config.lightWateringThreshhold = doc["lightWateringThreshhold"];
     config.wateringTime = doc["wateringTime"]; //sec
     config.schWateringTime  = doc["schWateringTime"];
