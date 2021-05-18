@@ -393,7 +393,8 @@ void sensorMode() {
 
   if ((moistureSensorVal >= config.moistureWateringThreshhold) &&
       (lightSensorVal <= config.lightWateringThreshhold) && (ValveOutput1Stat == false) &&
-      ( (now() - config.sensorLastWateringDate) >= config.wateringTime))
+      ( (now() - config.sensorLastWateringDate) >= config.wateringTime) && 
+      (config.waterReservoirState > 0) )
   {
     wateringOn();
     do {
@@ -433,7 +434,8 @@ void scheduleMode() {
   int moistureSensorVal = getMoisture();
 
   if ( (now() >= (config.schLastWateringDate + config.schWateringFrequency)) &&
-       (ValveOutput1Stat == false) )
+       (ValveOutput1Stat == false) && 
+      (config.waterReservoirState > 0) )
   {
     wateringOn();
     do {
@@ -472,7 +474,8 @@ void scheduleMode() {
 void manualMode() {
   int moistureSensorVal = getMoisture();
 
-  if ( (ValveOutput1Stat == false) && (okSelect > 1))
+  if ( (ValveOutput1Stat == false) && (okSelect > 1) &&
+      (config.waterReservoirState > 0) )
   {
     wateringOn();
     do {
@@ -907,17 +910,17 @@ void buttonSetup() {
 void setConfigValues() {
   // set default values config
 
-  config.moistureWateringThreshhold = 50; //  % dry
+  config.moistureWateringThreshhold = 25; //  % dry
   config.lightWateringThreshhold = 100; // % light
-  config.wateringTime = 60 ; //sec
+  config.wateringTime = 120 ; //sec
   // manual mode
   config.lastWateringDate = now();
   // sensor mode
   config.sensorLastWateringDate = now();
   // sch. mode
   config.schLastWateringDate = now();
-  config.schWateringTime = 60;
-  config.schWateringFrequency = 86400; // 1 day
+  config.schWateringTime = 120;
+  config.schWateringFrequency = 432000; //5 days 1 day is 86400 sec
 
   config.waterReservoirState = 4; //liters
   config.flowRate = 0.01; // liters/sec 1/3600
