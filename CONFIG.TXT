@@ -1,1 +1,1 @@
-{"lastWateringDate":1602702972,"sensorLastWateringDate":1602702634,"moistureWateringThreshhold":50,"lightWateringThreshhold":100,"wateringTime":60,"schWateringTime":60,"schWateringFrequency":86400,"schLastWateringDate":1603010743,"waterReservoirState":4,"flowRate":0.06}
+{"lastWateringDate":1621630580,"sensorLastWateringDate":1621628572,"moistureWateringThreshhold":50,"lightWateringThreshhold":100,"wateringTime":120,"schWateringTime":120,"schWateringFrequency":432000,"schLastWateringDate":1621628572,"waterReservoirState":2.79,"flowRate":0.01,"defaultMode":2}
