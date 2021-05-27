@@ -395,6 +395,7 @@ void sensorMode() {
       ( (now() - config.sensorLastWateringDate) >= config.wateringTime) &&
       (config.waterReservoirState > 0) )
   {
+    okSelect = 0;
     wateringOn();
     do {
       elapseTime = now() - startTime;
@@ -405,7 +406,8 @@ void sensorMode() {
         okSelect += 1;
       }
 
-      if ( ((moistureSensorVal <= config.moistureWateringThreshhold) && (config.wateringTime <= elapseTime)) || (okSelect > 1) ) {
+      if ( ((moistureSensorVal <= config.moistureWateringThreshhold) &&
+            (config.wateringTime <= elapseTime)) || (okSelect > 1) ) {
         okSelect = 0;
         break;
       }
@@ -436,6 +438,7 @@ void scheduleMode() {
        (ValveOutput1Stat == false) &&
        (config.waterReservoirState > 0) )
   {
+    okSelect = 0;
     wateringOn();
     do {
       elapseTime = now() - startTime;
@@ -447,7 +450,7 @@ void scheduleMode() {
       }
 
       // if moistureSensorVal --> 100 dry , 0 wet
-      if ((moistureSensorVal <= config.moistureWateringThreshhold) || (okSelect > 1)) {
+      if ((moistureSensorVal < config.moistureWateringThreshhold) || (okSelect > 1)) {
         // config.wateringTime = elapseTime;
         okSelect = 0;
         break;
@@ -476,8 +479,21 @@ void manualMode() {
   if ( (ValveOutput1Stat == false) && (okSelect > 1) &&
        (config.waterReservoirState > 0) )
   {
+    okSelect = 0;
     wateringOn();
     do {
+      int okButtonVal = digitalRead(okButton);
+      if ((okButtonVal == LOW) ) {
+        okSelect += 1;
+      }
+
+      // if Ok button true stop watering
+      if ((moistureSensorVal < config.moistureWateringThreshhold) || (okSelect > 1)) {
+        // config.wateringTime = elapseTime;
+        okSelect = 0;
+        break;
+      }
+
       elapseTime = now() - startTime;
       moistureSensorVal = getMoisture();
       sensorDisplay("Manual Mode", 0, 0, 1, 7, 0, false, false);
@@ -900,21 +916,21 @@ void buttonSetup() {
 void setConfigValues() {
   // set default values config
 
-  config.moistureWateringThreshhold = 50; //  % dry
+  config.moistureWateringThreshhold = 0; //  % dry
   config.lightWateringThreshhold = 100; // % light
-  config.wateringTime = 120 ; //sec
+  config.wateringTime = 60 ; //sec
   // manual mode
   config.lastWateringDate = now();
   // sensor mode
   config.sensorLastWateringDate = now();
   // sch. mode
   config.schLastWateringDate = now();
-  config.schWateringTime = 120;
-  config.schWateringFrequency = 432000; //5 days 1 day is 86400 sec
+  config.schWateringTime = 180;
+  config.schWateringFrequency = 345600; //432000 5 days 1 day is 86400 sec
 
   config.waterReservoirState = 4; //liters
   config.flowRate = 0.01; // liters/sec 1/3600
-  config.defaultMode = 0; // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
+  config.defaultMode = 1; // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
 }
 
 // logic in case of water reservoir refilled to the full
