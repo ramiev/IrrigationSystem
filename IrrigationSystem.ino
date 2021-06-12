@@ -1,12 +1,3 @@
-#include <ArduinoJson.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <SPI.h>
-#include <TFT.h>  // Arduino LCD library
-#include <SD.h>
-#include <CurieTime.h>
-#include <CurieBLE.h>
-
 /*
   Irrigation system for plants home use
   by Rami Even-Tsur
@@ -19,7 +10,7 @@
     Light Intensity Sensor Module 5528 Photo Resistor
     Water Pumps DC 12V Pump 4.2W 240L/H Flow Rate QR30E
 
-  Moisture reading :
+  Moisture soil reading :
     1000 ~1023 dry soil
     901 ~999 humid soil
     0 ~900 in water
@@ -35,6 +26,14 @@
   watering plants when humidity is low and no sun through valve control.
   Measures and records irrigation time and moisture and lighting values
 */
+#include <CurieTime.h>
+#include <CurieBLE.h>
+#include <ArduinoJson.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <SPI.h>
+#include <TFT.h>  // Arduino LCD library
+#include <SD.h>
 
 // pin definition for sensors
 #define moistureSensorPin A0 // input from moisture sensor
@@ -105,7 +104,7 @@ struct Config {
   byte defaultMode;                     // set the default working mode
 };
 
-const char *filename = "/config.txt";  // <- SD library uses 8.3 filenames
+const char *configFileName = "/config.txt";  // <- SD library uses 8.3 filenames
 Config config;                         // <- global configuration object
 
 byte showSensorSelect = 0;
@@ -121,6 +120,45 @@ BLEUnsignedCharCharacteristic moistureCharacteristic("19B10001", BLERead | BLENo
 BLEUnsignedCharCharacteristic lightCharacteristic("19B10002", BLERead | BLENotify);
 BLEFloatCharacteristic tempetureCharacteristic("19B10003", BLERead | BLENotify);
 BLECharCharacteristic ValveOutput1StatCharacteristic("19B10004", BLERead | BLENotify);
+
+
+void setup() {
+  // initialize serial communication at 9600 bits per second:
+  Serial.begin(9600);
+  while (!Serial) {
+    // wait for serial port to connect. Needed for native USB port only
+    delay (5000);
+    break;
+  }
+
+  startTime = now();
+  stopTime = now();
+
+  setupDisplay();
+  setupSDcard();
+  oneWireSetup();
+
+  // declare the inputs and outputs:
+  pinMode(moistureSensorPin, INPUT);
+  pinMode(lightSensorPin, INPUT);
+  pinMode(Valve_Output1_PIN, OUTPUT);
+  pinMode(pumpPwmPin, OUTPUT);
+
+  sdConfig();
+
+  buttonSetup();
+  wateringOff();
+  bleSetup();
+
+  modeSelect = config.defaultMode;
+}
+
+
+void loop() {
+  clockDisplay(getStrTime(now()), 0, 110, 2);
+  buttonMenu();
+  bleConnect();
+}
 
 
 // bluetooth le setup
@@ -185,44 +223,6 @@ void bleConnect() {
     }
 
   }
-}
-
-
-void setup() {
-  // initialize serial communication at 9600 bits per second:
-  Serial.begin(9600);
-  while (!Serial) {
-    // wait for serial port to connect. Needed for native USB port only
-    delay (5000);
-    break;
-  }
-
-  startTime = now();
-  stopTime = now();
-
-  setupDisplay();
-  setupSDcard();
-  oneWireSetup();
-
-  // declare the inputs and outputs:
-  pinMode(moistureSensorPin, INPUT);
-  pinMode(lightSensorPin, INPUT);
-  pinMode(Valve_Output1_PIN, OUTPUT);
-  pinMode(pumpPwmPin, OUTPUT);
-
-  sdConfig();
-  buttonSetup();
-  wateringOff();
-  bleSetup();
-
-  modeSelect = config.defaultMode;
-}
-
-
-void loop() {
-  clockDisplay(getStrTime(now()), 0, 110, 2);
-  buttonMenu();
-  bleConnect();
 }
 
 
@@ -374,17 +374,13 @@ void buttonMenu() {
       sensorDisplay("Set time Mode", 0, 80, 2, 7, 0, cls, clsTxt, serialOut);
       serialOut = true;
       cls = false;
-      if (okSelect) {  // logic in case of init config file needed and irrigation log print to console
+      if (okSelect) {  // logic in case of load config file values after change and irrigation log print to console
+        sensorDisplay("Load config values from file", 0, 80, 2, 4, 1000, true, true, serialOut);
+        loadConfiguration(configFileName, config);
+        printConfigValues();
         // Dump Irrigation activity file
         Serial.println("Print Irrigation activity file...");
         printFile("datalog.csv");
-        // inint config file to defaults
-        setConfigValues();
-        saveConfiguration(filename, config);
-        sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true, serialOut);
-        // Dump config file
-        Serial.println(F("Print config file..."));
-        printFile(filename);
         okSelect = 0;
       }
       break;
@@ -436,7 +432,7 @@ void sensorMode() {
     } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.sensorLastWateringDate = now();
-    saveConfiguration(filename, config);
+    saveConfiguration(configFileName, config);
   }
 }
 
@@ -479,7 +475,7 @@ void scheduleMode() {
     } while (elapseTime <= config.schWateringTime);
     wateringOff();
     config.schLastWateringDate = now();
-    saveConfiguration(filename, config);
+    saveConfiguration(configFileName, config);
   }
 }
 
@@ -520,7 +516,7 @@ void manualMode() {
     } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.lastWateringDate = now();
-    saveConfiguration(filename, config);
+    saveConfiguration(configFileName, config);
     modeSelect = config.defaultMode; // return to sensor mode
   }
 }
@@ -616,10 +612,10 @@ void writeDataToSDcard() {
                + "," + String(getTemperatures()) + "℃"
                + "," + String(getMoisture()) + "% moisture"
                + "," + String(getLightValue()) + "% light"
-               //   + "," + String(ValveOutput1Stat) + " Irrigation Valve"
                + "," + getStrTime(startTime)
                + "," + getStrTime(stopTime)
-               + "," + String(stopTime - startTime);
+               + "," + String(stopTime - startTime) + " sec"
+               + "," + String(modeSelect) + " mode";
 
   // open the file. note that only one file can be open at a time,
   // so you have to close this one before opening another.
@@ -633,7 +629,7 @@ void writeDataToSDcard() {
     Serial.println(dataString);
   }
   else { // if the file isn't open, pop up an error:
-    Serial.println("error opening datalog !");
+    Serial.println("error opening datalog.csv file !");
     setupSDcard();
   }
 }
@@ -699,7 +695,7 @@ void wateringOn() {
 
 
 void wateringOff() {
-  digitalWrite(Valve_Output1_PIN, LOW);
+  digitalWrite(Valve_Output1_PIN, LOW);         // stop the solenoid
   analogWrite(pumpPwmPin, pumpPwmDutyCycleOff); // stop the pump
   ValveOutput1Stat = false;
   stopTime = now();
@@ -760,7 +756,9 @@ void setupSDcard() {
     sensorDisplay("Card failed, or not present", 0, 10, 1, 7, 0, false, true, serialOut);
     // don't do anything more:
     // while (1);
+    loadDefaultConfigValues();
     delay (5000);
+
   }
   else  {
     sensorDisplay("card initialized.", 0, 10, 1, 7, 0, false, true, serialOut);
@@ -810,11 +808,12 @@ void printAddress(DeviceAddress deviceAddress) {
 // json file config.txt format
 void sdConfig() {
   // Should load default config if run for the first time
-  Serial.println(F("Loading configuration..."));
-  loadConfiguration(filename, config);
+  sensorDisplay("Loading configuration...", 0, 55, 2, 2, 0, true, true, serialOut);
+  loadConfiguration(configFileName, config);
   // Dump config file
-  Serial.println(F("Print config file..."));
-  printFile(filename);
+  sensorDisplay("Print config file...", 0, 55, 2, 2, 0, true, true, serialOut);
+  printFile(configFileName);
+  printConfigValues();
 }
 
 
@@ -823,11 +822,10 @@ void loadConfiguration(const char *filename, Config &config) {
   // Open file for reading
   File file = SD.open(filename);
   if (!file) {
-    Serial.println("open config file fail !, create new config file ");
-    //setupSDcard();
-    setConfigValues();
-    saveConfiguration(filename, config);
-    sensorDisplay("init config", 0, 80, 2, 4, 1000, true, true, serialOut);
+    sensorDisplay("reading file fail, check sd card !", 0, 55, 2, 2, 0, true, true, serialOut);
+    Serial.println(filename);
+    setupSDcard();
+    return;
   }
 
   // Allocate a temporary JsonDocument
@@ -837,10 +835,12 @@ void loadConfiguration(const char *filename, Config &config) {
   // Deserialize the JSON document
   DeserializationError error = deserializeJson(doc, file);
   if (error) {
+    sensorDisplay("fail,goto default!", 0, 55, 2, 2, 0, true, true, serialOut);
     Serial.println(F("Failed to read file, using default configuration"));
     Serial.println(error.c_str());
-    // set default values config
-    setConfigValues();
+    // Load default config values
+    loadDefaultConfigValues();
+    saveConfiguration(configFileName, config);
   } else {
     // Copy values from the JsonDocument to the Config
     config.lastWateringDate = doc["lastWateringDate"];
@@ -854,6 +854,8 @@ void loadConfiguration(const char *filename, Config &config) {
     config.waterReservoirState = doc["waterReservoirState"]; //liters
     config.flowRate = doc["flowRate"]; // liters/sec 1/3600 240 L/H 1/120 0.01
     config.defaultMode = doc["defaultMode"];
+
+    sensorDisplay("Config load complete", 0, 55, 2, 2, 0, true, true, serialOut);
   }
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
@@ -906,8 +908,8 @@ void printFile(const char *filename) {
   // Open file for reading
   File file = SD.open(filename);
   if (!file) {
-    Serial.println(F("Failed to read file "));
-    Serial.print(F(filename));
+    Serial.println(F("Failed to read file"));
+    Serial.println(F(filename));
     Serial.println(F("Try again..."));
     setupSDcard();
     return;
@@ -930,8 +932,8 @@ void buttonSetup() {
 }
 
 
-void setConfigValues() {
-  // set default config values
+void loadDefaultConfigValues() {
+  // load default config values
 
   config.moistureWateringThreshhold = 0; // 100% fully dry , 0% fully wet
   config.lightWateringThreshhold = 100;  // 100% fully light, 0% fully dark
@@ -948,6 +950,8 @@ void setConfigValues() {
   config.waterReservoirState = 4;   // liters
   config.flowRate = 0.01;           // liters/sec 1/3600
   config.defaultMode = 1;           // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
+
+  sensorDisplay("Load complete Default Values !", 0, 55, 2, 2, 0, true, true, serialOut);
 }
 
 
@@ -955,8 +959,45 @@ void setConfigValues() {
 void tankRefilled() {
   if (okSelect && showSensorSelect == 3) {
     config.waterReservoirState = 4;
-    saveConfiguration(filename, config);
+    saveConfiguration(configFileName, config);
     sensorDisplay("Reservoir refilled", 0, 80, 2, 4, 1000, true, true, serialOut);
     okSelect = 0;
   }
+}
+
+void printConfigValues() {
+
+  Serial.print("lastWateringDate ");
+  Serial.println(config.lastWateringDate);
+
+  Serial.print("sensorLastWateringDate ");
+  Serial.println(config.sensorLastWateringDate);
+
+  Serial.print("moistureWateringThreshhold ");
+  Serial.println(config.moistureWateringThreshhold);
+
+  Serial.print("lightWateringThreshhold ");
+  Serial.println(config.lightWateringThreshhold);
+
+  Serial.print("wateringTime ");
+  Serial.println(config.wateringTime);
+
+  Serial.print("schWateringTime ");
+  Serial.println(config.schWateringTime);
+
+  Serial.print("schWateringFrequency ");
+  Serial.println(config.schWateringFrequency);
+
+  Serial.print("schLastWateringDate ");
+  Serial.println(config.schLastWateringDate);
+
+  Serial.print("waterReservoirState ");
+  Serial.println(config.waterReservoirState);
+
+  Serial.print("flowRate ");
+  Serial.println(config.flowRate);
+
+  Serial.print("defaultMode ");
+  Serial.println(config.defaultMode);
+
 }
