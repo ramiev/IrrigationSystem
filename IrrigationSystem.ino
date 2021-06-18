@@ -1,3 +1,11 @@
+/* TODO
+    1.
+    2.
+    3. add air humidity sensor
+    4. fix Moisture soil sensor / or change to rain indicator
+    5. plan PCB board - change arduino to IoT board
+    6. soil quality sensor
+*/
 /*
   Irrigation system for plants home use
   by Rami Even-Tsur
@@ -265,7 +273,7 @@ void buttonMenu() {
   // in force show water state for filling indicator
   if (config.waterReservoirState <= 0) {
     showSensorSelect = 3;
-    cls = true;
+    cls = false;
     clsTxt = true;
   }
 
@@ -397,10 +405,11 @@ void sensorMode() {
   int lightSensorVal = getLightValue();
 
   // moistureSensorVal 100% fully dry 0% fully wet
-  if ((moistureSensorVal < config.moistureWateringThreshhold) &&
-      (lightSensorVal <= config.lightWateringThreshhold) && (ValveOutput1Stat == false) &&
-      ( (now() - config.sensorLastWateringDate) >= config.wateringTime) &&
-      (config.waterReservoirState > 0) )
+  if ( (moistureSensorVal < config.moistureWateringThreshhold) &&
+       (lightSensorVal <= config.lightWateringThreshhold) &&
+       (ValveOutput1Stat == false) &&
+       ( (now() - config.sensorLastWateringDate) >= config.wateringTime) &&
+       (config.waterReservoirState > 0) )
   {
     wateringOn();
     okSelect = 0;
@@ -414,8 +423,9 @@ void sensorMode() {
         okSelect += 1;
       }
 
-      if ( ((moistureSensorVal <= config.moistureWateringThreshhold) &&
-            (config.wateringTime <= elapseTime)) || (okSelect > 1) ) {
+      if ( ( (moistureSensorVal <= config.moistureWateringThreshhold)
+             && (config.wateringTime <= elapseTime) )
+           || (okSelect > 1) ) {
         okSelect = 0;
         break;
       }
@@ -429,7 +439,7 @@ void sensorMode() {
       sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 500, false, true, serialOut);
       clockDisplay(getStrTime(now()), 0, 110, 2);
       bleConnect();
-    } while (elapseTime <= config.wateringTime);
+    } while (elapseTime <= config.wateringTime || (getWaterReservoirState() > 0) );
     wateringOff();
     config.sensorLastWateringDate = now();
     saveConfiguration(configFileName, config);
@@ -442,9 +452,9 @@ void sensorMode() {
 void scheduleMode() {
   int moistureSensorVal = getMoisture();
 
-  if ( (now() >= (config.schLastWateringDate + config.schWateringFrequency)) &&
-       (ValveOutput1Stat == false) &&
-       (config.waterReservoirState > 0) )
+  if ( (now() >= (config.schLastWateringDate + config.schWateringFrequency))
+       && (ValveOutput1Stat == false)
+       && (config.waterReservoirState > 0) )
   {
     okSelect = 0;
     wateringOn();
@@ -458,7 +468,8 @@ void scheduleMode() {
       }
 
       // cancel watering when wet or ok button press
-      if ((moistureSensorVal < config.moistureWateringThreshhold) || (okSelect > 1)) {
+      if ( (moistureSensorVal < config.moistureWateringThreshhold) ||  (okSelect > 1) )
+      {
         // config.wateringTime = elapseTime;
         okSelect = 0;
         break;
@@ -472,7 +483,7 @@ void scheduleMode() {
       sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 1000, false, true, serialOut);
       clockDisplay(getStrTime(now()), 0, 110, 2);
       bleConnect();
-    } while (elapseTime <= config.schWateringTime);
+    } while ( (elapseTime <= config.schWateringTime) || (getWaterReservoirState() > 0) );
     wateringOff();
     config.schLastWateringDate = now();
     saveConfiguration(configFileName, config);
@@ -484,8 +495,9 @@ void scheduleMode() {
 void manualMode() {
   int moistureSensorVal = getMoisture();
 
-  if ( (ValveOutput1Stat == false) && (okSelect > 1) &&
-       (config.waterReservoirState > 0) )
+  if ( (ValveOutput1Stat == false)
+       && (okSelect > 1)
+       && (config.waterReservoirState > 0) )
   {
     okSelect = 0;
     wateringOn();
@@ -513,7 +525,7 @@ void manualMode() {
       sensorDisplay("% Dry is " + String(getMoisture()), 0, 95, 1, 4, 0, false, false, serialOut);
       clockDisplay(getStrTime(now()), 0, 110, 2);
       bleConnect();
-    } while (elapseTime <= config.wateringTime);
+    } while ( (elapseTime <= config.wateringTime) || (getWaterReservoirState() > 0) );
     wateringOff();
     config.lastWateringDate = now();
     saveConfiguration(configFileName, config);
@@ -968,10 +980,10 @@ void tankRefilled() {
 void printConfigValues() {
 
   Serial.print("lastWateringDate ");
-  Serial.println(config.lastWateringDate);
+  Serial.println( getStrTime(config.lastWateringDate) );
 
   Serial.print("sensorLastWateringDate ");
-  Serial.println(config.sensorLastWateringDate);
+  Serial.println( getStrTime(config.sensorLastWateringDate) );
 
   Serial.print("moistureWateringThreshhold ");
   Serial.println(config.moistureWateringThreshhold);
@@ -989,7 +1001,7 @@ void printConfigValues() {
   Serial.println(config.schWateringFrequency);
 
   Serial.print("schLastWateringDate ");
-  Serial.println(config.schLastWateringDate);
+  Serial.println( getStrTime(config.schLastWateringDate) );
 
   Serial.print("waterReservoirState ");
   Serial.println(config.waterReservoirState);
@@ -999,5 +1011,4 @@ void printConfigValues() {
 
   Serial.print("defaultMode ");
   Serial.println(config.defaultMode);
-
 }
