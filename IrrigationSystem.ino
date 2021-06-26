@@ -1,6 +1,6 @@
 /* TODO
-    1. fix water flow logic calculation
-    2. fix watering STATS DISPLY
+    1.
+    2.
     3. add air humidity sensor
     4. fix Moisture soil sensor / or change to rain indicator
     5. plan PCB board - change arduino to IoT board
@@ -77,7 +77,7 @@
 
 boolean serialOut = true; // use for printing lcd display output message to terminal for debug
 
-// create an instance of the library
+// create an instance of TFT library
 TFT TFTscreen = TFT(cs, dc, rst);
 
 // Data wire is plugged into port (pin) 2 on the Arduino
@@ -379,17 +379,17 @@ void buttonMenu() {
       manualMode();
       tankRefilled(); //reservoir refilled init by ok button press
       break;
-    case 3:  // set time mode and init config
-      serialSetTime();
+    case 3:  // setup mode
+      serialSetTime(); // set time by serial
       serialOut = false;
-      sensorDisplay("Set time Mode", 0, 80, 2, 7, 0, cls, clsTxt, serialOut);
+      sensorDisplay("Setup Mode", 0, 80, 2, 7, 0, cls, clsTxt, serialOut);
       serialOut = true;
       cls = false;
-      if (okSelect) {  // logic in case of load config file values after change and irrigation log print to console
+      if (okSelect) {  // load config from sd json config.txt
         sensorDisplay("Load config values from file", 0, 80, 2, 4, 1000, true, true, serialOut);
         loadConfiguration(configFileName, config);
         printConfigValues();
-        // Dump Irrigation activity file
+        // Dump Irrigation activity file to consol
         Serial.println("Print Irrigation activity file...");
         printFile("datalog.csv");
         okSelect = 0;
@@ -662,6 +662,7 @@ void writeDataToSDcard() {
     setupSDcard();
   }
 }
+
 
 // sensorVal, xPos, yPos, fontSize, fontColorVal, delayVal, cls, clsTxt, serialOut
 // print text on display
@@ -966,23 +967,18 @@ void buttonSetup() {
 
 void loadDefaultConfigValues() {
   // load default config values
-
   config.moistureWateringThreshhold = 0; // 100% fully dry , 0% fully wet
   config.lightWateringThreshhold = 100;  // 100% fully light, 0% fully dark
-
   config.wateringTime = 60 ;             // manual and sensor mode Duration of watering in seconds
   config.lastWateringDate = now() + timeZone;       // manual mode date of last time watering
   config.sensorLastWateringDate = now() + timeZone; // sensor mode date of last time watering
-
   // sch. mode
   config.schLastWateringDate = now() + timeZone;   // date of last time watering
   config.schWateringTime = 180;          // Duration of watering in seconds
   config.schWateringFrequency = 86400;  // Watering frequency in seconds, day is 86400 sec
-
-  config.waterReservoirState = 4;   // liters
-  config.flowRate = 0.01;           // liters/sec 1/3600
+  config.waterReservoirState = 3.6;   // 3.70 liters
+  config.flowRate = 0.01;           // liters/sec 1/3600 0.016666667
   config.defaultMode = 1;           // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
-
   sensorDisplay("Load complete Default Values !", 0, 55, 2, 2, 0, true, true, serialOut);
 }
 
@@ -990,7 +986,7 @@ void loadDefaultConfigValues() {
 // logic in case of water reservoir refilled to the full
 void tankRefilled() {
   if (okSelect && showSensorSelect == 3) {
-    config.waterReservoirState = 4;
+    config.waterReservoirState = 3.7;
     saveConfiguration(configFileName, config);
     sensorDisplay("Reservoir refilled", 0, 80, 2, 4, 1000, true, true, serialOut);
     okSelect = 0;
