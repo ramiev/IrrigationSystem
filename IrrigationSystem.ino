@@ -407,8 +407,8 @@ void sensorMode() {
   int moistureSensorVal = getMoisture();
   int lightSensorVal = getLightValue();
 
-  // moistureSensorVal 100% fully dry 0% fully wet
-  if ( (moistureSensorVal < config.moistureWateringThreshhold) &&
+  // moistureSensorVal 100% fully dry, 0% fully wet
+  if ( (moistureSensorVal >= config.moistureWateringThreshhold) &&
        (lightSensorVal <= config.lightWateringThreshhold) &&
        (ValveOutput1Stat == false) &&
        ( (now() - config.sensorLastWateringDate) >= config.wateringTime) &&
@@ -458,7 +458,7 @@ void sensorMode() {
 // watering for preset time every periodic preset frequency
 // schWateringTime, schWateringFrequency, schLastWateringDate saved to config file
 void scheduleMode() {
-  int moistureSensorVal = getMoisture();
+  bool isRainy = rainIndicator();
 
   if ( (now() >= (config.schLastWateringDate + config.schWateringFrequency))
        && (ValveOutput1Stat == false)
@@ -468,7 +468,7 @@ void scheduleMode() {
     wateringOn();
     do {
       elapseTime = now() - startTime;
-      moistureSensorVal = getMoisture();
+      isRainy = rainIndicator();
 
       int okButtonVal = digitalRead(okButton);
       if ((okButtonVal == LOW) ) {
@@ -477,10 +477,8 @@ void scheduleMode() {
 
       float WaterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
 
-      // cancel watering when wet or ok button press
-      if ( (moistureSensorVal < config.moistureWateringThreshhold)
-           ||  (okSelect > 1)
-           || (WaterReservoirState <= 0))
+      // cancel watering when rainy or ok button press or water empty
+      if ( (isRainy) || (okSelect > 1) || (WaterReservoirState <= 0) )
       {
         okSelect = 0;
         sensorDisplay("Watering canceled", 0, 80, 2, 2, 1000, true, true, serialOut);
@@ -505,7 +503,7 @@ void scheduleMode() {
 
 // watering for preset time long and returns to sensor mode
 void manualMode() {
-  int moistureSensorVal = getMoisture();
+  bool isRainy = rainIndicator();
 
   if ( (ValveOutput1Stat == false)
        && (okSelect > 1)
@@ -524,9 +522,7 @@ void manualMode() {
 
       float WaterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
       // stop watering on Ok button true or moisture Threshhold or Water Reservoir empty
-      if ( (moistureSensorVal < config.moistureWateringThreshhold)
-           || (okSelect > 1)
-           || (WaterReservoirState <= 0) )
+      if ( (isRainy) || (okSelect > 1) || (WaterReservoirState <= 0) )
       {
         okSelect = 0;
         sensorDisplay("Watering canceled", 0, 80, 2, 2, 1000, true, true, serialOut);
@@ -539,7 +535,7 @@ void manualMode() {
       sensorDisplay(String(WaterReservoirState) + " Liter remaining", 0, 75, 2, 2, 1000, false, true, serialOut);
       sensorDisplay(String(elapseTime) + " sec elapsed", 0, 90, 2, 2, 1000, false, true, serialOut);
 
-      moistureSensorVal = getMoisture();
+      isRainy = rainIndicator();
       clockDisplay(getStrTime(now()), 0, 110, 2);
       bleConnect();
     } while (elapseTime <= config.wateringTime);
@@ -967,7 +963,7 @@ void buttonSetup() {
 
 void loadDefaultConfigValues() {
   // load default config values
-  config.moistureWateringThreshhold = 0; // 100% fully dry , 0% fully wet
+  config.moistureWateringThreshhold = 25; // 100% fully dry , 0% fully wet
   config.lightWateringThreshhold = 100;  // 100% fully light, 0% fully dark
   config.wateringTime = 60 ;             // manual and sensor mode Duration of watering in seconds
   config.lastWateringDate = now() + timeZone;       // manual mode date of last time watering
@@ -976,7 +972,7 @@ void loadDefaultConfigValues() {
   config.schLastWateringDate = now() + timeZone;   // date of last time watering
   config.schWateringTime = 180;          // Duration of watering in seconds
   config.schWateringFrequency = 86400;  // Watering frequency in seconds, day is 86400 sec
-  config.waterReservoirState = 3.6;   // 3.70 liters
+  config.waterReservoirState = 3.3;   // 3.70 liters
   config.flowRate = 0.01;           // liters/sec 1/3600 0.016666667
   config.defaultMode = 1;           // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
   sensorDisplay("Load complete Default Values !", 0, 55, 2, 2, 0, true, true, serialOut);
@@ -986,12 +982,13 @@ void loadDefaultConfigValues() {
 // logic in case of water reservoir refilled to the full
 void tankRefilled() {
   if (okSelect && showSensorSelect == 3) {
-    config.waterReservoirState = 3.7;
+    config.waterReservoirState = 3.3;
     saveConfiguration(configFileName, config);
     sensorDisplay("Reservoir refilled", 0, 80, 2, 4, 1000, true, true, serialOut);
     okSelect = 0;
   }
 }
+
 
 void printConfigValues() {
 
@@ -1030,4 +1027,14 @@ void printConfigValues() {
   Serial.println(config.defaultMode);
 
   Serial.println();
+}
+
+
+// uses moisture Sensor for indicat rain (return true) to alow stop watering.
+// moistureSensorVal 100% fully dry, 0% fully wet
+bool rainIndicator() {
+  int moistureSensorVal;
+  moistureSensorVal = getMoisture();
+  if (moistureSensorVal >= 20) return false; 
+  return true;
 }
