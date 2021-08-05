@@ -428,8 +428,7 @@ void sensorMode() {
 
       float WaterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
 
-      if ( ( (moistureSensorVal <= config.moistureWateringThreshhold)
-             && (config.wateringTime <= elapseTime) )
+      if ( (moistureSensorVal <= config.moistureWateringThreshhold)
            || (okSelect > 1)
            || (WaterReservoirState <= 0) )
       {
