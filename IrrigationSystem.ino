@@ -1,10 +1,10 @@
 /* TODO
-    1.
-    2.
-    3. add air humidity sensor
-    4. fix Moisture soil sensor / or change to rain indicator
-    5. plan PCB board - change arduino to IoT board
-    6. soil quality sensor
+    1. soil quality sensor
+    2. add air humidity sensor
+    3. plan PCB board - change arduino to IoT board
+    4. 
+    5. 
+    6. 
 */
 /*
   Irrigation system for plants home use
