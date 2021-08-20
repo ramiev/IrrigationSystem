@@ -2,9 +2,9 @@
     1. soil quality sensor
     2. add air humidity sensor
     3. plan PCB board - change arduino to IoT board
-    4. 
-    5. 
-    6. 
+    4.
+    5.
+    6.
 */
 /*
   Irrigation system for plants home use
@@ -272,6 +272,8 @@ void buttonMenu() {
   int moistureSensorVal = getMoisture();
   int lightSensorVal = getLightValue();
   float tempC = getTemperatures();
+
+  serialCommandInterface();
 
   // in force show water state for filling indicator
   if (config.waterReservoirState <= 0) {
@@ -573,6 +575,33 @@ void serialSetTime() {
 }
 
 
+// cli command log --> print log file and config info to terminal
+void serialCommandInterface() {
+  String incomingByte = "" ; // for incoming serial data
+
+  // send data only when you receive data:
+  while (Serial.available() > 0) {
+    // read the incoming byte:
+    char c = Serial.read();  //gets one byte from serial buffer
+    incomingByte += c; //makes the string readString
+    if (incomingByte.length() == 3) {
+      if (incomingByte == "log") {
+        Serial.println(incomingByte);
+        // Dump Irrigation activity file to consol
+        Serial.println("Print Irrigation activity file...");
+        printFile("datalog.csv");
+      } else if (incomingByte == "cfg") {
+        Serial.println(incomingByte);
+        printConfigValues();
+      } else  {
+        Serial.println("Unknown command");
+      }
+
+    }
+  }
+}
+
+
 int getMoisture() {
   int moistureSensorVal = analogRead(moistureSensorPin);
   return map(moistureSensorVal, 0, 1023, 0, 100);
@@ -846,7 +875,7 @@ void sdConfig() {
 
 
 // Loads the configuration from a file
-void loadConfiguration(const char *filename, Config &config) {
+void loadConfiguration(const char *filename, Config & config) {
   // Open file for reading
   File file = SD.open(filename);
   if (!file) {
@@ -891,7 +920,7 @@ void loadConfiguration(const char *filename, Config &config) {
 
 
 // Saves the configuration to a file
-void saveConfiguration(const char *filename, const Config &config) {
+void saveConfiguration(const char *filename, const Config & config) {
   // Delete existing file, otherwise the configuration is appended to the file
   SD.remove(filename);
 
@@ -1034,6 +1063,6 @@ void printConfigValues() {
 bool rainIndicator() {
   int moistureSensorVal;
   moistureSensorVal = getMoisture();
-  if (moistureSensorVal >= 20) return false; 
+  if (moistureSensorVal >= 20) return false;
   return true;
 }
