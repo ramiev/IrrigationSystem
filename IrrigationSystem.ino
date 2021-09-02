@@ -382,7 +382,6 @@ void buttonMenu() {
       tankRefilled(); //reservoir refilled init by ok button press
       break;
     case 3:  // setup mode
-      serialSetTime(); // set time by serial
       serialOut = false;
       sensorDisplay("Setup Mode", 0, 80, 2, 7, 0, cls, clsTxt, serialOut);
       serialOut = true;
@@ -548,57 +547,54 @@ void manualMode() {
 }
 
 
-// set system time by sending utc unix time number through serial
-// unix time url https://www.unixtimestamp.com/index.php
-void serialSetTime() {
-  unsigned long timeZone = 10800 ; // 10800 utc +3 hours in israel +2 7200
-  String incomingByte = "" ; // for incoming serial data
-
-  //Serial.println("Enter unix time in sec");
+/* cli command
+  log -> print log file to terminal
+  cfg -> print config info to terminal
+  time.unixtime -> set time
+*/
+void serialCommandInterface() {
+  String command = "" ; // for incoming serial data
+  String param = "";
 
   // send data only when you receive data:
   while (Serial.available() > 0) {
     // read the incoming byte:
-    char c = Serial.read();  //gets one byte from serial buffer
-    incomingByte += c; //makes the string readString
-    if (c == 10) {
-      setTime(incomingByte.toInt() + timeZone);
-      serialOut = true;
-      sensorDisplay("time is set", 0, 80, 2, 1, 500, true, true, serialOut);
-      serialOut = false;
-      break;
-    } else {
-      Serial.println(c);
+    command = Serial.readStringUntil('\n');
+
+    param = command.substring(command.indexOf('.') + 1);
+    command = command.substring(0, command.indexOf('.'));
+    // Serial.println(command);
+    // Serial.println(param);
+
+    if ( command.equals("log") ) {
+      Serial.println(command);
+      // Dump Irrigation activity file to consol
+      Serial.println("Print Irrigation activity file...");
+      printFile("datalog.csv");
+    } else if (command.equals("cfg")) {
+      Serial.println(command);
+      printConfigValues();
+    }  else if (command.equals("time")) {
+      cliSetTime(param);
+    } else  {
+      Serial.println("Unknown command");
     }
   }
-  // Serial.println(getStrTime(now()));
 }
 
 
-// cli command log --> print log file and config info to terminal
-void serialCommandInterface() {
-  String incomingByte = "" ; // for incoming serial data
+// set system time by sending utc unix time number through serial
+// unix time url https://www.unixtimestamp.com/index.php
+void cliSetTime(String unixTimeStamp) {
+  unsigned long timeZone = 10800 ; // 10800 utc +3 hours in israel +2 7200
 
-  // send data only when you receive data:
-  while (Serial.available() > 0) {
-    // read the incoming byte:
-    char c = Serial.read();  //gets one byte from serial buffer
-    incomingByte += c; //makes the string readString
-    if (incomingByte.length() == 3) {
-      if (incomingByte == "log") {
-        Serial.println(incomingByte);
-        // Dump Irrigation activity file to consol
-        Serial.println("Print Irrigation activity file...");
-        printFile("datalog.csv");
-      } else if (incomingByte == "cfg") {
-        Serial.println(incomingByte);
-        printConfigValues();
-      } else  {
-        Serial.println("Unknown command");
-      }
-
-    }
+  if ( ! (unixTimeStamp.equals("time")) ) {
+    setTime(unixTimeStamp.toInt() + timeZone);
+    serialOut = true;
+    sensorDisplay("time is set", 0, 80, 2, 1, 500, true, true, serialOut);
+    serialOut = false;
   }
+  Serial.println(getStrTime(now()));
 }
 
 
@@ -776,11 +772,13 @@ float getWateringVolume(unsigned long wateringElapseTime) {
   return wateringVolume;
 }
 
+
 float getWaterReservoirState(float wateringVolume) {
   float waterInReservoir = 0;
   waterInReservoir  = config.waterReservoirState - wateringVolume;
   return waterInReservoir;
 }
+
 
 void setupDisplay() {
   char printout[30];
