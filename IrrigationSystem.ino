@@ -551,6 +551,7 @@ void manualMode() {
   log -> print log file to terminal
   cfg -> print config info to terminal
   time.unixtime -> set time
+  moisture.% -> sets moisture Watering Threshhold
 */
 void serialCommandInterface() {
   String command = "" ; // for incoming serial data
@@ -574,12 +575,27 @@ void serialCommandInterface() {
     } else if (command.equals("cfg")) {
       Serial.println(command);
       printConfigValues();
-    }  else if (command.equals("time")) {
+    } else if (command.equals("time")) {
       cliSetTime(param);
+    } else if (command.equals("moisture")) {
+      cliSetMoistureTh(param);
     } else  {
       Serial.println("Unknown command");
     }
   }
+}
+
+
+void cliSetMoistureTh(String moistureThreshhold) {
+
+  if ( ! ((moistureThreshhold.equals("moisture"))
+          || (moistureThreshhold.equals("moisture."))) )
+  {
+    config.moistureWateringThreshhold = moistureThreshhold.toInt();
+    saveConfiguration(configFileName, config);
+    Serial.println("moisture Watering Threshhold is set");
+  }
+  Serial.println("moisture is " + String(config.moistureWateringThreshhold) );
 }
 
 
@@ -1021,34 +1037,24 @@ void printConfigValues() {
   Serial.println("=====Print Loaded Config Values=====");
   Serial.print("lastWateringDate ");
   Serial.println( getStrTime(config.lastWateringDate) );
-
   Serial.print("sensorLastWateringDate ");
   Serial.println( getStrTime(config.sensorLastWateringDate) );
-
   Serial.print("moistureWateringThreshhold ");
   Serial.println(config.moistureWateringThreshhold);
-
   Serial.print("lightWateringThreshhold ");
   Serial.println(config.lightWateringThreshhold);
-
   Serial.print("wateringTime ");
   Serial.println(config.wateringTime);
-
   Serial.print("schWateringTime ");
   Serial.println(config.schWateringTime);
-
   Serial.print("schWateringFrequency ");
   Serial.println(config.schWateringFrequency);
-
   Serial.print("schLastWateringDate ");
   Serial.println( getStrTime(config.schLastWateringDate) );
-
   Serial.print("waterReservoirState ");
   Serial.println(config.waterReservoirState);
-
   Serial.print("flowRate ");
   Serial.println(config.flowRate);
-
   Serial.print("defaultMode ");
   Serial.println(config.defaultMode);
 
