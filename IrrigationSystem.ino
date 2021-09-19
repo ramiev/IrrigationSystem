@@ -1,7 +1,7 @@
 /* TODO
-    1. soil quality sensor
+    1. soil quality sensor ?
     2. add air humidity sensor
-    3. plan PCB board - change arduino to IoT board
+    3.
     4.
     5.
     6.
@@ -16,7 +16,9 @@
     Solenoid Valve ZE-4F180 NC DC 12V
     Soil Moisture Sensor YL-69
     Light Intensity Sensor Module 5528 Photo Resistor
-    Water Pumps DC 12V Pump 4.2W 240L/H Flow Rate QR30E
+    1.8" Serial SPI 128x160 Color TFT LCD Module Display (Driver IC ST7735)
+    DS18B20 1-Wire Digital Temperature Sensor
+    QR30E DC 12V 4.2W 240L/H Flow Rate Waterproof Brushless Pump
 
   Moisture soil reading :
     1000 ~1023 dry soil
@@ -27,16 +29,13 @@
     no Light 0 - 214
     light 214 - 1023
 
-  Temperature Sensor :
-    DS18B20 1-Wire Digital Temperature Sensor
-
   Measures soil moisture and lighting,
   watering plants when humidity is low and no sun through valve control.
-  Measures and records irrigation time and moisture and lighting values
+  Measures and records irrigation time and moisture and lighting values to SD card
 */
 #include <CurieTime.h>
 #include <CurieBLE.h>
-#include <ArduinoJson.h>
+#include <ArduinoJson.h>  // version 6.16.1
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <SPI.h>
@@ -549,6 +548,7 @@ void manualMode() {
 
 /* cli command
   log -> print log file to terminal
+  log.del -> delete log file
   cfg -> print config info to terminal
   time.unixtime -> set time
   moisture.% -> sets moisture Watering Threshhold
@@ -568,7 +568,9 @@ void serialCommandInterface() {
     // Serial.println(param);
 
     if ( command.equals("log") ) {
-      Serial.println(command);
+      if (param.equals("del")) {
+        delFile("datalog.csv");
+      }
       // Dump Irrigation activity file to consol
       Serial.println("Print Irrigation activity file...");
       printFile("datalog.csv");
@@ -674,7 +676,7 @@ void writeDataToSDcard() {
   String dataString = "";
   // read three sensors and append to the string:
   dataString = getStrTime(now())
-               + "," + String(getTemperatures()) + "℃"
+               + "," + String(getTemperatures()) + "?"
                + "," + String(getMoisture()) + "% moisture"
                + "," + String(getLightValue()) + "% light"
                + "," + getStrTime(startTime)
@@ -776,10 +778,10 @@ void wateringOff() {
 
 
 /*
-  fluid flow rate = area of the pipe or channel×velocity of the liquid
+  fluid flow rate = area of the pipe or channel�velocity of the liquid
   Q = Av
   Q = liquid flow rate (m3/s or L/s) liters per second
-  A = area of the pipe or channel (m2) area is A = πr2
+  A = area of the pipe or channel (m2) area is A = ?r2
   v = velocity of the liquid (m/s)
 */
 float getWateringVolume(unsigned long wateringElapseTime) {
@@ -973,25 +975,45 @@ void saveConfiguration(const char *filename, const Config & config) {
   file.close();
 }
 
+// DEL file name
+void delFile(const char *filename) {
+  // Check to see if the file exists:
+  Serial.println(filename);
+  if (SD.exists(filename)) {
+    Serial.println(" Exists.");
+    // delete the file:
+    Serial.println(" Removing...");
+    SD.remove(filename);
+  } else {
+    Serial.println("Doesn't exist.");
+  }
+}
+
 
 // Prints the content of a file to the Serial
 void printFile(const char *filename) {
-  // Open file for reading
-  File file = SD.open(filename);
-  if (!file) {
-    Serial.println(F("Failed to read file"));
+
+  if (SD.exists(filename)) {
+    // Open file for reading
+    File file = SD.open(filename);
+    if (!file) {
+      Serial.println(F("Failed to read file"));
+      Serial.println(F(filename));
+      Serial.println(F("Try again..."));
+      setupSDcard();
+      return;
+    }
+    // Extract each characters by one by one
+    while (file.available()) {
+      Serial.print((char)file.read());
+    }
+    Serial.println();
+    // Close the file
+    file.close();
+  } else {
     Serial.println(F(filename));
-    Serial.println(F("Try again..."));
-    setupSDcard();
-    return;
+    Serial.println(" Doesn't exist.");
   }
-  // Extract each characters by one by one
-  while (file.available()) {
-    Serial.print((char)file.read());
-  }
-  Serial.println();
-  // Close the file
-  file.close();
 }
 
 
