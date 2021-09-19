@@ -1,11 +1,3 @@
-/* TODO
-    1. soil quality sensor ?
-    2. add air humidity sensor
-    3.
-    4.
-    5.
-    6.
-*/
 /*
   Irrigation system for plants home use
   by Rami Even-Tsur
@@ -676,7 +668,7 @@ void writeDataToSDcard() {
   String dataString = "";
   // read three sensors and append to the string:
   dataString = getStrTime(now())
-               + "," + String(getTemperatures()) + "?"
+               + "," + String(getTemperatures()) + "℃"
                + "," + String(getMoisture()) + "% moisture"
                + "," + String(getLightValue()) + "% light"
                + "," + getStrTime(startTime)
@@ -781,7 +773,7 @@ void wateringOff() {
   fluid flow rate = area of the pipe or channel�velocity of the liquid
   Q = Av
   Q = liquid flow rate (m3/s or L/s) liters per second
-  A = area of the pipe or channel (m2) area is A = ?r2
+  A = area of the pipe or channel (m2) area is A = πr2
   v = velocity of the liquid (m/s)
 */
 float getWateringVolume(unsigned long wateringElapseTime) {
