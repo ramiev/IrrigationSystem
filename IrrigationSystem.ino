@@ -598,6 +598,8 @@ void cliSetMoistureTh(String moistureThreshhold) {
 void cliSetTime(String unixTimeStamp) {
   unsigned long timeZone = 10800 ; // 10800 utc +3 hours in israel +2 7200
 
+  Serial.println("https://www.unixtimestamp.com/index.php");
+
   if ( ! (unixTimeStamp.equals("time")) ) {
     setTime(unixTimeStamp.toInt() + timeZone);
     serialOut = true;
