@@ -7,18 +7,12 @@
     Arduino or Genuino 101
     Solenoid Valve ZE-4F180 NC DC 12V
     Soil Moisture Sensor YL-69
-    Light Intensity Sensor Module 5528 Photo Resistor    
-    sdcard
-    lcd display
-    power supply and backup battery
-    
-    3 control buttons
-    sensorButton (pin 3) see note pin changed to 0 - change sensore displying reading 
-    modeButton (pin 5) - change opertion mode between Sensor Mode | Schedule Mode | Manual Mode | Set time Mode
-    okButton (pin 6) - multi purpose button, create config.txt file | break irrigation opertion
-    
+    Light Intensity Sensor Module 5528 Photo Resistor
+    1.8" Serial SPI 128x160 Color TFT LCD Module Display (Driver IC ST7735)
+    DS18B20 1-Wire Digital Temperature Sensor
+    QR30E DC 12V 4.2W 240L/H Flow Rate Waterproof Brushless Pump
 
-  Moisture reading :
+  Moisture soil reading :
     1000 ~1023 dry soil
     901 ~999 humid soil
     0 ~900 in water
@@ -27,15 +21,10 @@
     no Light 0 - 214
     light 214 - 1023
 
-  Temperature Sensor :
-    DS18B20 1-Wire Digital Temperature Sensor
-
   Measures soil moisture and lighting,
   watering plants when humidity is low and no sun through valve control.
-  Measures and records irrigation time and moisture and lighting values
-  
-  The irrigation activity is documented and writing to file datalog.csv
-
+  Measures and records irrigation time and moisture and lighting values to SD card
+ 
   bluetooth LE support
 
 note:
@@ -44,4 +33,3 @@ note:
  duty cycle: between 0 (always off) and 255 (always on).
  due to power supply limitation DutyCycleOn set to 160.
  sensorButton pin changed to 0.
-
