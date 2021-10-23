@@ -112,7 +112,6 @@ byte modeSelect = 0;
 byte okSelect = 0;
 
 BLEService irrigationService("19B10000"); // BLE Irrigation Service
-
 // BLE Irrigation moisture light tempeture sensors level and ValveOutput1Stat Characteristic
 // custom 128-bit UUID,
 // remote clients will be able to get notifications if this characteristic changes
@@ -372,18 +371,15 @@ void buttonMenu() {
       manualMode();
       tankRefilled(); //reservoir refilled init by ok button press
       break;
-    case 3:  // setup mode
+    case 3:  // setup mode - load config from sd json config.txt
       serialOut = false;
       sensorDisplay("Setup Mode", 0, 80, 2, 7, 0, cls, clsTxt, serialOut);
       serialOut = true;
       cls = false;
-      if (okSelect) {  // load config from sd json config.txt
+      if (okSelect) {  
         sensorDisplay("Load config values from file", 0, 80, 2, 4, 1000, true, true, serialOut);
         loadConfiguration(configFileName, config);
         printConfigValues();
-        // Dump Irrigation activity file to consol
-        Serial.println("Print Irrigation activity file...");
-        printFile("datalog.csv");
         okSelect = 0;
       }
       break;
