@@ -35,14 +35,14 @@
 #include <SD.h>
 
 // pin definition for sensors
-#define moistureSensorPin A0 // input from moisture sensor
-#define lightSensorPin A1    // input from Light sensor
-#define Valve_Output1_PIN 7 // select the pin for the solenoid valve control
+#define moistureSensorPin A0  // input from moisture sensor
+#define lightSensorPin A1     // input from Light sensor
+#define Valve_Output1_PIN 7   // select the pin for the solenoid valve control
 
 // pin definition for the tft display
-#define cs   10
-#define dc   9
-#define rst  8
+#define cs 10
+#define dc 9
+#define rst 8
 /*
   The circuit:
   SD card attached to SPI bus as follows:
@@ -66,7 +66,7 @@
 #define pumpPwmDutyCycleOn 255
 #define pumpPwmDutyCycleOff 0
 
-boolean serialOut = true; // use for printing lcd display output message to terminal for debug
+boolean serialOut = true;  // use for printing lcd display output message to terminal for debug
 
 // create an instance of TFT library
 TFT TFTscreen = TFT(cs, dc, rst);
@@ -77,12 +77,16 @@ TFT TFTscreen = TFT(cs, dc, rst);
 OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensors(&oneWire);
-int numberOfDevices; // Number of temperature devices found
-DeviceAddress tempDeviceAddress; // We'll use this variable to store a found device address
+int numberOfDevices;              // Number of temperature devices found
+DeviceAddress tempDeviceAddress;  // We'll use this variable to store a found device address
 
 // irrigation timeing
 unsigned long startTime = 0, stopTime = 0, elapseTime = 0;
-unsigned long timeZone = 10800 ; // 10800 utc +3 hours in israel +2 7200
+
+// israel summer time 10800 utc +3
+//        winter time 7200 utc +2
+unsigned long timeZone = 7200;  
+
 
 // watering Solenoid Valve stat
 boolean ValveOutput1Stat = false;
@@ -91,28 +95,27 @@ boolean ValveOutput1Stat = false;
 char clockPrintout[20] = "";
 
 struct Config {
-  unsigned long lastWateringDate;       // manual Mode
-  unsigned long sensorLastWateringDate; // Sensor Mode
-  int moistureWateringThreshhold;       // Sensor mode, moisture value threshhold
-  int lightWateringThreshhold;          // Sensor mode, light value threshhold
-  unsigned long wateringTime;           // Sensor mode, watering time and rest watering time in sec.
-  unsigned long schWateringTime;        // schedule mode, long watering time in sec.
-  unsigned long schLastWateringDate;    // schedule mode, Last Watering Date in sec.
-  unsigned long schWateringFrequency;   // schedule mode, time between Watering in sec.
-  float flowRate;                       // L/s
-  float waterReservoirState;            // waterReservoirSize -  elapseTime * flowRate
-  byte defaultMode;                     // set the default working mode
+  unsigned long lastWateringDate;        // manual Mode
+  unsigned long sensorLastWateringDate;  // Sensor Mode
+  int moistureWateringThreshhold;        // Sensor mode, moisture value threshhold
+  int lightWateringThreshhold;           // Sensor mode, light value threshhold
+  unsigned long wateringTime;            // Sensor mode, watering time and rest watering time in sec.
+  unsigned long schWateringTime;         // schedule mode, long watering time in sec.
+  unsigned long schLastWateringDate;     // schedule mode, Last Watering Date in sec.
+  unsigned long schWateringFrequency;    // schedule mode, time between Watering in sec.
+  float flowRate;                        // L/s
+  float waterReservoirState;             // waterReservoirSize -  elapseTime * flowRate
+  byte defaultMode;                      // set the default working mode
 };
 
 const char *configFileName = "/config.txt";  // <- SD library uses 8.3 filenames
-Config config;                         // <- global configuration object
+Config config;                               // <- global configuration object
 
 byte showSensorSelect = 0;
 byte modeSelect = 0;
 byte okSelect = 0;
 
-BLEService irrigationService("19B10000"); // BLE Irrigation Service
-
+BLEService irrigationService("19B10000");  // BLE Irrigation Service
 // BLE Irrigation moisture light tempeture sensors level and ValveOutput1Stat Characteristic
 // custom 128-bit UUID,
 // remote clients will be able to get notifications if this characteristic changes
@@ -127,7 +130,7 @@ void setup() {
   Serial.begin(9600);
   while (!Serial) {
     // wait for serial port to connect. Needed for native USB port only
-    delay (5000);
+    delay(5000);
     break;
   }
 
@@ -145,8 +148,8 @@ void setup() {
   pinMode(pumpPwmPin, OUTPUT);
 
   // watering Off
-  digitalWrite(Valve_Output1_PIN, LOW);         // stop the solenoid
-  analogWrite(pumpPwmPin, pumpPwmDutyCycleOff); // stop the pump
+  digitalWrite(Valve_Output1_PIN, LOW);          // stop the solenoid
+  analogWrite(pumpPwmPin, pumpPwmDutyCycleOff);  // stop the pump
 
   sdConfig();
   buttonSetup();
@@ -183,11 +186,11 @@ void bleSetup() {
   irrigationService.addCharacteristic(tempetureCharacteristic);
   irrigationService.addCharacteristic(ValveOutput1StatCharacteristic);
 
-  BLE.addService(irrigationService);   // Add the BLE irrigation service
-  moistureCharacteristic.setValue(getMoisture()); // initial value for this characteristic
-  lightCharacteristic.setValue(getLightValue()); // initial value for this characteristic
-  tempetureCharacteristic.setValue(getTemperatures()); // initial value for this characteristic
-  ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat); // initial value for this characteristic
+  BLE.addService(irrigationService);                          // Add the BLE irrigation service
+  moistureCharacteristic.setValue(getMoisture());             // initial value for this characteristic
+  lightCharacteristic.setValue(getLightValue());              // initial value for this characteristic
+  tempetureCharacteristic.setValue(getTemperatures());        // initial value for this characteristic
+  ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat);  // initial value for this characteristic
 
   // Start advertising BLE.  It will start continuously transmitting BLE
   // advertising packets and will be visible to remote BLE central devices
@@ -218,12 +221,11 @@ void bleConnect() {
       tempetureCharacteristic.setValue(getTemperatures());
       ValveOutput1StatCharacteristic.setValue(ValveOutput1Stat);
 
-    } else  {
+    } else {
       // when the central disconnects, print it out:
       Serial.print(F("Disconnected from central: "));
       Serial.println(central.address());
     }
-
   }
 }
 
@@ -273,20 +275,20 @@ void buttonMenu() {
     clsTxt = true;
   }
 
-  if ((sensorButtonVal == LOW) ) {
+  if ((sensorButtonVal == LOW)) {
     showSensorSelect += 1;
     cls = true;
     clsTxt = true;
   }
 
-  if ((modeButtonVal == LOW) ) {
+  if ((modeButtonVal == LOW)) {
     modeSelect += 1;
     cls = true;
     clsTxt = true;
-    if (modeSelect > 3)  modeSelect = 0;
+    if (modeSelect > 3) modeSelect = 0;
   }
 
-  if ((okButtonVal == LOW) ) {
+  if ((okButtonVal == LOW)) {
     okSelect += 1;
   }
 
@@ -302,7 +304,7 @@ void buttonMenu() {
   switch (showSensorSelect) {
     case 0:
       serialOut = false;
-      if (cls)  {
+      if (cls) {
         sensorDisplay("humidity\n" + String(moistureSensorVal) + " %", 0, 0, 3, 4, 0, cls, true, serialOut);
         cls = false;
       } else if (moistureSensorVal == getMoisture()) {
@@ -348,13 +350,13 @@ void buttonMenu() {
 
   // switch working mode
   switch (modeSelect) {
-    case 0: // sensor mode and reservoir refilled init
+    case 0:  // sensor mode and reservoir refilled init
       serialOut = false;
       sensorDisplay("Sensor Mode", 0, 80, 2, 4, 0, cls, clsTxt, serialOut);
       serialOut = true;
       cls = false;
       sensorMode();
-      tankRefilled(); //reservoir refilled init by ok button press
+      tankRefilled();  //reservoir refilled init by ok button press
       break;
     case 1:
       serialOut = false;
@@ -370,20 +372,17 @@ void buttonMenu() {
       serialOut = true;
       cls = false;
       manualMode();
-      tankRefilled(); //reservoir refilled init by ok button press
+      tankRefilled();  //reservoir refilled init by ok button press
       break;
-    case 3:  // setup mode
+    case 3:  // setup mode - load config from sd json config.txt
       serialOut = false;
       sensorDisplay("Setup Mode", 0, 80, 2, 7, 0, cls, clsTxt, serialOut);
       serialOut = true;
       cls = false;
-      if (okSelect) {  // load config from sd json config.txt
+      if (okSelect) {
         sensorDisplay("Load config values from file", 0, 80, 2, 4, 1000, true, true, serialOut);
         loadConfiguration(configFileName, config);
         printConfigValues();
-        // Dump Irrigation activity file to consol
-        Serial.println("Print Irrigation activity file...");
-        printFile("datalog.csv");
         okSelect = 0;
       }
       break;
@@ -400,12 +399,7 @@ void sensorMode() {
   int lightSensorVal = getLightValue();
 
   // moistureSensorVal 100% fully dry, 0% fully wet
-  if ( (moistureSensorVal >= config.moistureWateringThreshhold) &&
-       (lightSensorVal <= config.lightWateringThreshhold) &&
-       (ValveOutput1Stat == false) &&
-       ( (now() - config.sensorLastWateringDate) >= config.wateringTime) &&
-       (config.waterReservoirState > 0) )
-  {
+  if ((moistureSensorVal >= config.moistureWateringThreshhold) && (lightSensorVal <= config.lightWateringThreshhold) && (ValveOutput1Stat == false) && ((now() - config.sensorLastWateringDate) >= config.wateringTime) && (config.waterReservoirState > 0)) {
     wateringOn();
     okSelect = 0;
     do {
@@ -414,16 +408,15 @@ void sensorMode() {
 
       // read button state while watering for cancel
       int okButtonVal = digitalRead(okButton);
-      if ((okButtonVal == LOW) ) {
+      if ((okButtonVal == LOW)) {
         okSelect += 1;
       }
 
-      float WaterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
+      float WaterReservoirState = getWaterReservoirState(getWateringVolume(elapseTime));
 
-      if ( (moistureSensorVal <= config.moistureWateringThreshhold)
-           || (okSelect > 1)
-           || (WaterReservoirState <= 0) )
-      {
+      if ((moistureSensorVal <= config.moistureWateringThreshhold)
+          || (okSelect > 1)
+          || (WaterReservoirState <= 0)) {
         okSelect = 0;
         sensorDisplay("Watering canceled", 0, 80, 2, 2, 1000, true, true, serialOut);
         break;
@@ -438,7 +431,7 @@ void sensorMode() {
       sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 500, false, true, serialOut);
       clockDisplay(getStrTime(now()), 0, 110, 2);
       bleConnect();
-    } while ( elapseTime <= config.wateringTime );
+    } while (elapseTime <= config.wateringTime);
     wateringOff();
     config.sensorLastWateringDate = now();
     saveConfiguration(configFileName, config);
@@ -451,10 +444,9 @@ void sensorMode() {
 void scheduleMode() {
   bool isRainy = rainIndicator();
 
-  if ( (now() >= (config.schLastWateringDate + config.schWateringFrequency))
-       && (ValveOutput1Stat == false)
-       && (config.waterReservoirState > 0) )
-  {
+  if ((now() >= (config.schLastWateringDate + config.schWateringFrequency))
+      && (ValveOutput1Stat == false)
+      && (config.waterReservoirState > 0)) {
     okSelect = 0;
     wateringOn();
     do {
@@ -462,15 +454,14 @@ void scheduleMode() {
       isRainy = rainIndicator();
 
       int okButtonVal = digitalRead(okButton);
-      if ((okButtonVal == LOW) ) {
+      if ((okButtonVal == LOW)) {
         okSelect += 1;
       }
 
-      float WaterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
+      float WaterReservoirState = getWaterReservoirState(getWateringVolume(elapseTime));
 
       // cancel watering when rainy or ok button press or water empty
-      if ( (isRainy) || (okSelect > 1) || (WaterReservoirState <= 0) )
-      {
+      if ((isRainy) || (okSelect > 1) || (WaterReservoirState <= 0)) {
         okSelect = 0;
         sensorDisplay("Watering canceled", 0, 80, 2, 2, 1000, true, true, serialOut);
         break;
@@ -484,7 +475,7 @@ void scheduleMode() {
       sensorDisplay(String(elapseTime) + " sec", 100, 75, 2, 2, 1000, false, true, serialOut);
       clockDisplay(getStrTime(now()), 0, 110, 2);
       bleConnect();
-    } while ( elapseTime <= config.schWateringTime );
+    } while (elapseTime <= config.schWateringTime);
     wateringOff();
     config.schLastWateringDate = now();
     saveConfiguration(configFileName, config);
@@ -496,25 +487,22 @@ void scheduleMode() {
 void manualMode() {
   bool isRainy = rainIndicator();
 
-  if ( (ValveOutput1Stat == false)
-       && (okSelect > 1)
-       && (config.waterReservoirState > 0) )
-  {
+  if ((ValveOutput1Stat == false)
+      && (okSelect > 1)
+      && (config.waterReservoirState > 0)) {
     okSelect = 0;
     wateringOn();
-    do
-    {
+    do {
       elapseTime = now() - startTime;
 
       int okButtonVal = digitalRead(okButton);
-      if ((okButtonVal == LOW) ) {
+      if ((okButtonVal == LOW)) {
         okSelect += 1;
       }
 
-      float WaterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
+      float WaterReservoirState = getWaterReservoirState(getWateringVolume(elapseTime));
       // stop watering on Ok button true or moisture Threshhold or Water Reservoir empty
-      if ( (isRainy) || (okSelect > 1) || (WaterReservoirState <= 0) )
-      {
+      if ((isRainy) || (okSelect > 1) || (WaterReservoirState <= 0)) {
         okSelect = 0;
         sensorDisplay("Watering canceled", 0, 80, 2, 2, 1000, true, true, serialOut);
         break;
@@ -533,7 +521,7 @@ void manualMode() {
     wateringOff();
     config.lastWateringDate = now();
     saveConfiguration(configFileName, config);
-    modeSelect = config.defaultMode; // return to sensor mode
+    modeSelect = config.defaultMode;  // return to sensor mode
   }
 }
 
@@ -544,9 +532,14 @@ void manualMode() {
   cfg -> print config info to terminal
   time.unixtime -> set time
   moisture.% -> sets moisture Watering Threshhold
+
+  new :
+   float flowRate;                        // L/s
+  float waterReservoirState;             // waterReservoirSize -  elapseTime * flowRate
+
 */
 void serialCommandInterface() {
-  String command = "" ; // for incoming serial data
+  String command = "";  // for incoming serial data
   String param = "";
 
   // send data only when you receive data:
@@ -559,7 +552,7 @@ void serialCommandInterface() {
     // Serial.println(command);
     // Serial.println(param);
 
-    if ( command.equals("log") ) {
+    if (command.equals("log")) {
       if (param.equals("del")) {
         delFile("datalog.csv");
       }
@@ -573,34 +566,48 @@ void serialCommandInterface() {
       cliSetTime(param);
     } else if (command.equals("moisture")) {
       cliSetMoistureTh(param);
-    } else  {
+    } else if (command.equals("flow")) {
+      cliSetFlow(param);
+    } else {
       Serial.println("Unknown command");
     }
   }
 }
 
 
+
+void cliSetFlow(String flowRate) {
+
+  if (!((flowRate.equals("flow"))
+        || (flowRate.equals("flow.")))) {
+    config.flowRate = flowRate.toFloat();
+    saveConfiguration(configFileName, config);
+    Serial.println("flow Rate is set");
+  }
+  Serial.println("flow Rate is " + String(config.flowRate));
+}
+
+
 void cliSetMoistureTh(String moistureThreshhold) {
 
-  if ( ! ((moistureThreshhold.equals("moisture"))
-          || (moistureThreshhold.equals("moisture."))) )
-  {
+  if (!((moistureThreshhold.equals("moisture"))
+        || (moistureThreshhold.equals("moisture.")))) {
     config.moistureWateringThreshhold = moistureThreshhold.toInt();
     saveConfiguration(configFileName, config);
     Serial.println("moisture Watering Threshhold is set");
   }
-  Serial.println("moisture is " + String(config.moistureWateringThreshhold) );
+  Serial.println("moisture is " + String(config.moistureWateringThreshhold));
 }
 
 
 // set system time by sending utc unix time number through serial
 // unix time url https://www.unixtimestamp.com/index.php
 void cliSetTime(String unixTimeStamp) {
-  unsigned long timeZone = 10800 ; // 10800 utc +3 hours in israel +2 7200
+  // unsigned long timeZone = 10800;  // 10800 utc +3 hours in israel +2 7200
 
   Serial.println("https://www.unixtimestamp.com/index.php");
 
-  if ( ! (unixTimeStamp.equals("time")) ) {
+  if (!(unixTimeStamp.equals("time"))) {
     setTime(unixTimeStamp.toInt() + timeZone);
     serialOut = true;
     sensorDisplay("time is set", 0, 80, 2, 1, 500, true, true, serialOut);
@@ -616,15 +623,15 @@ int getMoisture() {
 }
 
 
-int  getLightValue()  {
+int getLightValue() {
   int lightSensorVal = analogRead(lightSensorPin);
   return map(lightSensorVal, 0, 1023, 0, 100);
 }
 
 
 float getTemperatures(void) {
-  float tempC; // Temperature
-  sensors.requestTemperatures(); // Send the command to get temperatures
+  float tempC;                    // Temperature
+  sensors.requestTemperatures();  // Send the command to get temperatures
   /*
     // Loop through each device, print out temperature data
     for (int i = 0; i < numberOfDevices; i++) {
@@ -656,10 +663,9 @@ String getStrTime(unsigned long unixTime) {
 String print2digits(int number) {
   String numStr;
   if (number >= 0 && number < 10) {
-    numStr = "0" + String(number) ;
-  }
-  else {
-    numStr = String(number) ;
+    numStr = "0" + String(number);
+  } else {
+    numStr = String(number);
   }
   return numStr;
 }
@@ -688,8 +694,7 @@ void writeDataToSDcard() {
     dataFile.close();
     // print to the serial port too:
     Serial.println(dataString);
-  }
-  else { // if the file isn't open, pop up an error:
+  } else {  // if the file isn't open, pop up an error:
     Serial.println("error opening datalog.csv file !");
     setupSDcard();
   }
@@ -698,20 +703,20 @@ void writeDataToSDcard() {
 
 // sensorVal, xPos, yPos, fontSize, fontColorVal, delayVal, cls, clsTxt, serialOut
 // print text on display
-void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int fontColorVal,
+void sensorDisplay(String sensorVal, int xPos, int yPos, int fontSize, int fontColorVal,
                    int delayVal, bool cls, bool clsTxt, bool serialOut) {
   // char array to print to the screen
   char sensorPrintout[30];
-  byte colorCode[8][3] =
-  { // (red, green, blue);
-    {0, 0, 0}, //Black 0
-    {0, 0, 255}, //Blue 1
-    {255, 0, 0}, //Red 2
-    {255, 0, 255}, //Magenta    3
-    {0, 255, 0}, //Green 4
-    {0, 255, 255}, //Cyan 5
-    {255, 255, 0}, //Yellow 6
-    {255, 255, 255} //White 7
+  byte colorCode[8][3] = {
+    // (red, green, blue);
+    { 0, 0, 0 },       //Black 0
+    { 0, 0, 255 },     //Blue 1
+    { 255, 0, 0 },     //Red 2
+    { 255, 0, 255 },   //Magenta    3
+    { 0, 255, 0 },     //Green 4
+    { 0, 255, 255 },   //Cyan 5
+    { 255, 255, 0 },   //Yellow 6
+    { 255, 255, 255 }  //White 7
   };
 
   // clear the screen with a black background
@@ -745,7 +750,7 @@ void sensorDisplay(String  sensorVal, int xPos, int yPos, int fontSize, int font
 
 void wateringOn() {
   digitalWrite(Valve_Output1_PIN, HIGH);
-  analogWrite(pumpPwmPin, pumpPwmDutyCycleOn); // run the pump
+  analogWrite(pumpPwmPin, pumpPwmDutyCycleOn);  // run the pump
   ValveOutput1Stat = true;
   startTime = now();
   if (ValveOutput1Stat) {
@@ -757,8 +762,8 @@ void wateringOn() {
 
 
 void wateringOff() {
-  digitalWrite(Valve_Output1_PIN, LOW);         // stop the solenoid
-  analogWrite(pumpPwmPin, pumpPwmDutyCycleOff); // stop the pump
+  digitalWrite(Valve_Output1_PIN, LOW);          // stop the solenoid
+  analogWrite(pumpPwmPin, pumpPwmDutyCycleOff);  // stop the pump
   ValveOutput1Stat = false;
   stopTime = now();
   if (ValveOutput1Stat) {
@@ -767,7 +772,7 @@ void wateringOff() {
     sensorDisplay("Watering OFF", 0, 55, 2, 4, 0, true, false, serialOut);
   }
   writeDataToSDcard();
-  config.waterReservoirState = getWaterReservoirState( getWateringVolume(elapseTime) );
+  config.waterReservoirState = getWaterReservoirState(getWateringVolume(elapseTime));
 }
 
 
@@ -787,7 +792,7 @@ float getWateringVolume(unsigned long wateringElapseTime) {
 
 float getWaterReservoirState(float wateringVolume) {
   float waterInReservoir = 0;
-  waterInReservoir  = config.waterReservoirState - wateringVolume;
+  waterInReservoir = config.waterReservoirState - wateringVolume;
   return waterInReservoir;
 }
 
@@ -807,7 +812,7 @@ void setupDisplay() {
   // clear screen
   TFTscreen.fillScreen(0);
   // write the text to the top left corner of the screen
-  String headLineStr = String( "Rami's\n Irrigation\n system\n");
+  String headLineStr = String("Rami's\n Irrigation\n system\n");
   headLineStr.toCharArray(printout, 30);
   // TFTscreen.text(printout, 0, 10);
   // set the font size very large for the loop
@@ -824,10 +829,9 @@ void setupSDcard() {
     // don't do anything more:
     // while (1);
     loadDefaultConfigValues();
-    delay (5000);
+    delay(5000);
 
-  }
-  else  {
+  } else {
     sensorDisplay("card initialized.", 0, 10, 1, 7, 0, false, true, serialOut);
   }
 }
@@ -885,7 +889,7 @@ void sdConfig() {
 
 
 // Loads the configuration from a file
-void loadConfiguration(const char *filename, Config & config) {
+void loadConfiguration(const char *filename, Config &config) {
   // Open file for reading
   File file = SD.open(filename);
   if (!file) {
@@ -914,12 +918,12 @@ void loadConfiguration(const char *filename, Config & config) {
     config.sensorLastWateringDate = doc["sensorLastWateringDate"];
     config.moistureWateringThreshhold = doc["moistureWateringThreshhold"];
     config.lightWateringThreshhold = doc["lightWateringThreshhold"];
-    config.wateringTime = doc["wateringTime"]; //sec
-    config.schWateringTime  = doc["schWateringTime"];
-    config.schWateringFrequency = doc["schWateringFrequency"]; // 1 day
+    config.wateringTime = doc["wateringTime"];  //sec
+    config.schWateringTime = doc["schWateringTime"];
+    config.schWateringFrequency = doc["schWateringFrequency"];  // 1 day
     config.schLastWateringDate = doc["schLastWateringDate"];
-    config.waterReservoirState = doc["waterReservoirState"]; //liters
-    config.flowRate = doc["flowRate"]; // liters/sec 1/3600 240 L/H 1/120 0.01
+    config.waterReservoirState = doc["waterReservoirState"];  //liters
+    config.flowRate = doc["flowRate"];                        // liters/sec 1/3600 240 L/H 1/120 0.01
     config.defaultMode = doc["defaultMode"];
 
     sensorDisplay("Config load complete", 0, 55, 2, 2, 0, true, true, serialOut);
@@ -930,7 +934,7 @@ void loadConfiguration(const char *filename, Config & config) {
 
 
 // Saves the configuration to a file
-void saveConfiguration(const char *filename, const Config & config) {
+void saveConfiguration(const char *filename, const Config &config) {
   // Delete existing file, otherwise the configuration is appended to the file
   SD.remove(filename);
 
@@ -1021,18 +1025,18 @@ void buttonSetup() {
 
 void loadDefaultConfigValues() {
   // load default config values
-  config.moistureWateringThreshhold = 25; // 100% fully dry , 0% fully wet
-  config.lightWateringThreshhold = 100;  // 100% fully light, 0% fully dark
-  config.wateringTime = 60 ;             // manual and sensor mode Duration of watering in seconds
-  config.lastWateringDate = now() + timeZone;       // manual mode date of last time watering
-  config.sensorLastWateringDate = now() + timeZone; // sensor mode date of last time watering
+  config.moistureWateringThreshhold = 25;            // 100% fully dry , 0% fully wet
+  config.lightWateringThreshhold = 100;              // 100% fully light, 0% fully dark
+  config.wateringTime = 60;                          // manual and sensor mode Duration of watering in seconds
+  config.lastWateringDate = now() + timeZone;        // manual mode date of last time watering
+  config.sensorLastWateringDate = now() + timeZone;  // sensor mode date of last time watering
   // sch. mode
-  config.schLastWateringDate = now() + timeZone;   // date of last time watering
-  config.schWateringTime = 180;          // Duration of watering in seconds
-  config.schWateringFrequency = 86400;  // Watering frequency in seconds, day is 86400 sec
-  config.waterReservoirState = 3.3;   // 3.70 liters
-  config.flowRate = 0.01;           // liters/sec 1/3600 0.016666667
-  config.defaultMode = 1;           // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
+  config.schLastWateringDate = now() + timeZone;  // date of last time watering
+  config.schWateringTime = 180;                   // Duration of watering in seconds
+  config.schWateringFrequency = 86400;            // Watering frequency in seconds, day is 86400 sec
+  config.waterReservoirState = 3.3;               // 3.70 liters
+  config.flowRate = 0.01;                         // liters/sec 1/3600 0.016666667
+  config.defaultMode = 1;                         // Sensor Mode 0 ,Schedule Mode 1 ,Manual Mode 2
   sensorDisplay("Load complete Default Values !", 0, 55, 2, 2, 0, true, true, serialOut);
 }
 
@@ -1052,9 +1056,9 @@ void printConfigValues() {
 
   Serial.println("=====Print Loaded Config Values=====");
   Serial.print("lastWateringDate ");
-  Serial.println( getStrTime(config.lastWateringDate) );
+  Serial.println(getStrTime(config.lastWateringDate));
   Serial.print("sensorLastWateringDate ");
-  Serial.println( getStrTime(config.sensorLastWateringDate) );
+  Serial.println(getStrTime(config.sensorLastWateringDate));
   Serial.print("moistureWateringThreshhold ");
   Serial.println(config.moistureWateringThreshhold);
   Serial.print("lightWateringThreshhold ");
@@ -1066,7 +1070,7 @@ void printConfigValues() {
   Serial.print("schWateringFrequency ");
   Serial.println(config.schWateringFrequency);
   Serial.print("schLastWateringDate ");
-  Serial.println( getStrTime(config.schLastWateringDate) );
+  Serial.println(getStrTime(config.schLastWateringDate));
   Serial.print("waterReservoirState ");
   Serial.println(config.waterReservoirState);
   Serial.print("flowRate ");
